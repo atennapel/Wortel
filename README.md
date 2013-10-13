@@ -7,7 +7,7 @@ Programming language that compiles to Javascript
 ```javascript
 # Euler 1
 iota: 999 ~%`%: [(% !>: 3 @: !) (% !>: 5 @: !)]`@*:
-	||`!*: ~%: (iota: 999) x\(x#0)`-: x\(x#1)`*: /+:;
+	||`!*: ~%: (iota: 999) ..(0)`-: ..(1)`*: /+:;
 # Euler 2
 (~~ @: ~+`% [id (slice !<: -2 @: /+)]`@ ~&) !^: 32 ,: [1 1] even`-: /+:;
 # Euler 4
