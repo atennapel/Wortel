@@ -10,5 +10,5 @@ Programming language that compiles to Javascript
 	*n !fac -n 1
 }
 
-:`.innerHTML!document.getElementById 'output' ~! ', ' `.join ~*&n "{n} -> {!fac n}" @to 10
+:`.innerHTML!document.getElementById 'output' ~! ', ' `.join !*&n "{n} -> {!fac n}" @to 10
 ```
