@@ -1,7 +1,11 @@
 /*
 	Wortel
 	@author: Albert ten Napel
-	@version: 0.1 
+	@version: 0.1
+
+	TODO:
+		add operators
+		add \ (partial application) and ~ (reverse arguments) and ~\ or \~
 */
 
 var Wortel = (function() {
@@ -97,103 +101,185 @@ var Wortel = (function() {
 	};
 
 	function toAST(p) {
-		for(var i = 0, l = p.length, r = [], c, ret; c = p[i], i < l; i++)
+		for(var i = p.length-1, r = [], c; c = p[i], i >= 0; i--)
 			if(c.type == 'symbol')
-				ret = getArgs(c.val, p, i+1), i = ret.i, r.push(convertToken(ret.val));
+				r.push(convertToken({
+					type: 'block',
+					val: c.val,
+					args: r.splice(-operators[c.val].length).reverse()
+				}));
 			else if('([{'.indexOf(c.type) != -1)
 				r.push(convertToken({type: c.type, val: toAST(c.val)}));
 			else r.push(convertToken(c));
-		return r;
-	};
-
-	function getArgs(symbol, p, i) {
-		for(var n = 0, arity = operators[symbol].length, args = [], c; c = p[i], n < arity; i++, n++) {
-			if(c === undefined) throw 'Could not find arguments for ' + symbol;
-			if(c.type == 'symbol')
-				ret = getArgs(c.val, p, i+1), i = ret.i, args.push(convertToken(ret.val));
-			else if('([{'.indexOf(c.type) != -1)
-				args.push(convertToken({type: c.type, val: toAST(c.val)}));
-			else args.push(convertToken(p[i]));
-		}
-		return {i: i-1, val: {type: 'block', val: symbol, args: args}};
+		return r.reverse();
 	};
 
 	function convertToken(x) {
-		if(x.type == '[') return new Expr.Array(x.val);
-		if(x.type == '(') return new Expr.Group(x.val);
-		if(x.type == '{') return new Expr.Object(x.val);
-		if(x.type == 'number') return new Expr.Number(x.val);
-		if(x.type == 'string') return new Expr.String(x.val, x.strtype);
-		if(x.type == 'block') return new Expr.Block(x.val, x.args);
-		throw 'Unknown token type: ' + c.type;
+		if(x.type == '[') return new JS.Array(x.val);
+		if(x.type == '(') return new JS.Group(x.val);
+		if(x.type == '{') return new JS.Object(x.val);
+		if(x.type == 'number') return new JS.Number(x.val);
+		if(x.type == 'name') return new JS.Name(x.val);
+		if(x.type == 'string') return new JS.String(x.val, x.strtype);
+		if(x.type == 'block') return new JS.Block(x.val, x.args);
+		throw 'Unknown token type: ' + x.type;
 	};
 
 	// Compilation
 	function toJS(ast) {
-		return ast;
+		return ast.map(mCompile).filter(function(x) {return x}).join(';');
 	};
 
 	function compile(s) {return toJS(parse(s))};
 
 	// Expr
 	function toString(x) {return x.toString()};
-	var Expr = {};
+	function mCompile(x) {return x.compile()};
+	var JS = {};
 	// Number
-	Expr.Number = function(n) {
+	JS.Number = function(n) {
 		this.val = n;
 	};
-	Expr.Number.prototype.toString = function() {return ''+this.val};
+	JS.Number.prototype.toString = function() {return ''+this.val};
+	JS.Number.prototype.compile = function() {return ''+this.val};
+	// Name
+	JS.Name = function(n) {
+		this.val = n;
+	};
+	JS.Name.prototype.toString = function() {return ''+this.val};
+	JS.Name.prototype.compile = function() {return ''+this.val};
 	// String
-	Expr.String = function(s, strtype) {
+	JS.String = function(s, strtype) {
 		this.val = s;
 		this.strtype = strtype;
 	};
-	Expr.String.prototype.toString = function() {return '"'+this.val+'"'};
+	JS.String.prototype.toString = function() {return this.strtype+this.val+this.strtype};
+	JS.String.prototype.compile = function() {return this.strtype+this.val+this.strtype};
 	// Block
-	Expr.Block = function(o, args) {
+	JS.Block = function(o, args) {
 		this.val = o;
 		this.args = args;
 	};
-	Expr.Block.prototype.toString = function() {
+	JS.Block.prototype.toString = function() {
 		return '('+this.val+' '+this.args.map(toString).join(' ')+')';
 	};
+	JS.Block.prototype.compile = function() {
+		return operators[this.val].apply(null, this.args).compile();
+	};
 	// Array
-	Expr.Array = function(a) {
+	JS.Array = function(a) {
 		this.val = a;
 	};
-	Expr.Array.prototype.toString = function() {
+	JS.Array.prototype.toString = function() {
 		return '['+this.val.map(toString).join(' ')+']';
 	};
+	JS.Array.prototype.compile = function() {
+		return '['+this.val.map(mCompile).join(',')+']';
+	};
 	// Group
-	Expr.Group = function(a) {
+	JS.Group = function(a) {
 		this.val = a;
 	};
-	Expr.Group.prototype.toString = function() {
+	JS.Group.prototype.toString = function() {
 		return '('+this.val.map(toString).join(' ')+')';
 	};
+	JS.Group.prototype.compile = function() {
+		return '('+this.val.map(mCompile).join(',')+')';
+	};
 	// Object
-	Expr.Object = function(a) {
+	JS.Object = function(a) {
 		this.val = a;
 	};
-	Expr.Object.prototype.toString = function() {
+	JS.Object.prototype.toString = function() {
 		return '{'+this.val.map(toString).join(' ')+'}';
 	};
-
-	// JS
-	var JS = {};
+	JS.Object.prototype.compile = function() {
+		for(var i = 0, t = this.val.map(mCompile), l = t.length, r = []; i < l; i += 2)
+			r.push(t[i]+':'+t[i+1]);
+		return '{'+r.join(',')+'}';
+	};
+	// JS expressions
+	// Empty
+	JS.Empty = function() {};
+	JS.Empty.prototype.compile = function() {return ''};
+	// BinOp
 	JS.BinOp = function(op, a, b) {
 		this.op = op;
 		this.a = a;
 		this.b = b;
 	};
+	JS.BinOp.prototype.compile = function() {
+		return '('+this.a.compile()+this.op+this.b.compile()+')';
+	};
+	// UnOp
+	JS.UnOp = function(op, a) {
+		this.op = op;
+		this.a = a;
+	};
+	JS.UnOp.prototype.compile = function() {
+		return '('+this.op+this.a.compile()+')';
+	};
+	// FnCall
+	JS.FnCall = function(fn, args) {
+		this.fn = fn;
+		this.args = args;
+	};
+	JS.FnCall.prototype.compile = function() {
+		return (typeof this.fn == 'string'? this.fn: '('+this.fn.compile()+')')+'('+this.args.map(mCompile).join(',')+')';
+	};
+	// ExprFn
+	JS.ExprFn = function(name, args, body) {
+		this.name = name;
+		this.args = args;
+		this.body = body;
+	};
+	JS.ExprFn.prototype.compile = function() {
+		return '(function '+(!this.name? '': typeof this.name == 'string'? this.name: this.name.compile())+
+			'('+this.args.map(mCompile).join(',')+'){return '+this.body.compile()+'})';
+	};
 
+	function wrap(a) {return a instanceof JS.Array? a.val: [a]};
 	// Operators
 	var operators = {
+		// Math
+		// unary
+		'@+': function(x) {return new JS.UnOp('+', x)},
+		'@-': function(x) {return new JS.UnOp('-', x)},
+		// binary
 		'+': function(x, y) {return new JS.BinOp('+', x, y)},
 		'-': function(x, y) {return new JS.BinOp('-', x, y)},
 		'*': function(x, y) {return new JS.BinOp('*', x, y)},
 		'/': function(x, y) {return new JS.BinOp('/', x, y)},
-		'%': function(x, y) {return new JS.BinOp('%', x, y)}
+		'%': function(x, y) {return new JS.BinOp('%', x, y)},
+		'^': function(x, y) {return new JS.FnCall('Math.pow', [x, y])},
+
+		// Boolean
+		// unary
+		'@not': function(x) {return new JS.UnOp('!', x)},
+		// binary
+		'=': function(x, y) {return new JS.BinOp('==', x, y)},
+		'!=': function(x, y) {return new JS.BinOp('!=', x, y)},
+		'==': function(x, y) {return new JS.BinOp('===', x, y)},
+		'!==': function(x, y) {return new JS.BinOp('!==', x, y)},
+		'>': function(x, y) {return new JS.BinOp('>', x, y)},
+		'>=': function(x, y) {return new JS.BinOp('>=', x, y)},
+		'<': function(x, y) {return new JS.BinOp('<', x, y)},
+		'<=': function(x, y) {return new JS.BinOp('<=', x, y)},
+
+		'||': function(x, y) {return new JS.BinOp('||', x, y)},
+		'&&': function(x, y) {return new JS.BinOp('&', x, y)},
+
+		// Function
+		// binary
+		'&': function(args, body) {return new JS.ExprFn('', wrap(args), body)},
+		'!': function(fn, args) {return new JS.FnCall(fn, wrap(args))},
+		// ternary
+		'@!': function(fn, x, y) {return new JS.FnCall(fn, [x, y])},
+	
+		// Wortel
+		'@': function() {return new JS.Empty()},
+		// unary
+		'@comment': function(s) {return new JS.Empty()},
 	};
 
 	return {
@@ -201,4 +287,4 @@ var Wortel = (function() {
 	};
 })();
 
-console.log(Wortel.compile('+ 1 + 2 3')[0].toString());
+console.log(Wortel.compile('&a&b + a b @comment "as\ndas"'));
