@@ -5,10 +5,16 @@
 
 	TODO:
 		add operators
-		add \ (partial application) and ~ (reverse arguments) and ~\ or \~
+		complex names
+		complex numbers
+		fix strings with newlines
+		string interpolation
 */
 
 var Wortel = (function() {
+	var _randN = 0;
+	function randVar() {return new JS.Name('_var'+(_randN++))}
+		
 	// Parser
 	var symbols = '~`!@#%^&*-+=|\\:;?/><,';
 	function isSymbol(c) {return symbols.indexOf(c) != -1};
@@ -18,8 +24,8 @@ var Wortel = (function() {
 	function isValidName(c) {return /[0-9a-z\_\$\.]/i.test(c)};
 
 	function parse(s) {
-		var START = 0, NUMBER = 1, SYMBOL = 2, NAME = 3, STRING = 4, WHITESPACE = 5,
-				r = [], t = [], strtype = esc = false;
+		var START = 0, NUMBER = 1, SYMBOL = 2, NAME = 3, STRING = 4,
+				r = [], t = [], strtype = esc = whitespace = false;
 		s += ' ';
 		for(var i = 0, l = s.length, state = START, c; c = s[i], i < l; i++) {
 			if(state == START) {
@@ -27,8 +33,7 @@ var Wortel = (function() {
 				else if(c == "'" || c == '"') strtype = c, state = STRING;
 				else if(/[0-9]/.test(c)) t.push(c), state = NUMBER;
 				else if(isSymbol(c)) t.push(c), state = SYMBOL;
-				else if(isValidName(c)) t.push(c), state = NAME;
-				else if(/\s/.test(c)) t.push(c), state = WHITESPACE;
+				else if(isValidName(c)) t.push(c), whitespace = /\s/.test(s[i-1] || ''), state = NAME;
 			} else if(state == NUMBER) {
 				if(/[^0-9a-z\.]/i.test(c))
 					r.push({type: 'number', val: t.join('')}), t = [], i--, state = START;
@@ -39,29 +44,31 @@ var Wortel = (function() {
 				else t.push(c);
 			} else if(state == NAME) {
 				if(!isValidName(c))
-					r.push({type: 'name', val: t.join('')}), t = [], i--, state = START;
+					r.push({type: 'name', val: t.join(''), whitespace: whitespace}), whitespace = false, t = [], i--, state = START;
 				else t.push(c);
 			} else if(state == STRING) {
 				if(esc) esc = false, t.push(c);
 				else if(c == '\\') t.push(c), esc = true;
 				else if(c != strtype) t.push(c);
 				else r.push({type: 'string', strtype: strtype, val: t.join('')}), t = [], state = START;
-			} else if(state == WHITESPACE) {
-				if(/\s/.test(c)) t.push(c);
-				else r.push({type: 'whitespace', val: t.join('')}), t = [], i--, state = START;
 			}
 		}
 
 		// Handle special operators
 		for(var i = 0, c; c = r[i], i < r.length; i++)
-			if(c.type == 'symbol' && c.val == '@' && r[i+1] && r[i+1].type == 'name') {
+			if(c.type == 'symbol' && c.val == '@' && r[i+1] && r[i+1].type == 'name' && !r[i+1].whitespace) {
 				var v = '@'+r[i+1].val;
 				if(!(v in operators)) throw 'Unknown operator: ' + v;
 				r.splice(i, 2, {type: 'symbol', val: v});
 			}
-
-		// Remove whitespace
-		r = r.filter(function(x) {return x.type != 'whitespace'});	
+		for(var i = 0, c; c = r[i], i < r.length; i++)
+			if(c.type == 'symbol' && c.val == '~' && r[i+1].type == 'symbol') {
+				r[i+1].reversed = true;
+				r.splice(i, 2, r[i+1]);
+			}
+		for(var i = 0, c; c = r[i], i < r.length; i++)
+			if(c.type == 'symbol' && c.val == '\\' && r[i+1].type == 'symbol')
+				r[i+1].quoted = true;
 
 		return toAST(groupBrackets(r));
 	};
@@ -102,13 +109,25 @@ var Wortel = (function() {
 
 	function toAST(p) {
 		for(var i = p.length-1, r = [], c; c = p[i], i >= 0; i--)
-			if(c.type == 'symbol')
-				r.push(convertToken({
+			if(c.type == 'symbol') {
+				if(c.quoted) r.push(convertToken({
 					type: 'block',
 					val: c.val,
-					args: r.splice(-operators[c.val].length).reverse()
-				}));
-			else if('([{'.indexOf(c.type) != -1)
+					args: [],
+					quoted: true,
+					reversed: c.reversed
+				})); else {
+					var n = operators[c.val].length,
+							args = n? r.splice(-n): [];
+					if(!c.reversed) args.reverse();
+					r.push(convertToken({
+						type: 'block',
+						val: c.val,
+						args: args,
+						reversed: c.reversed
+					}));
+				}
+			} else if('([{'.indexOf(c.type) != -1)
 				r.push(convertToken({type: c.type, val: toAST(c.val)}));
 			else r.push(convertToken(c));
 		return r.reverse();
@@ -121,7 +140,7 @@ var Wortel = (function() {
 		if(x.type == 'number') return new JS.Number(x.val);
 		if(x.type == 'name') return new JS.Name(x.val);
 		if(x.type == 'string') return new JS.String(x.val, x.strtype);
-		if(x.type == 'block') return new JS.Block(x.val, x.args);
+		if(x.type == 'block') return new JS.Block(x.val, x.args, x.quoted, x.reversed);
 		throw 'Unknown token type: ' + x.type;
 	};
 
@@ -156,9 +175,11 @@ var Wortel = (function() {
 	JS.String.prototype.toString = function() {return this.strtype+this.val+this.strtype};
 	JS.String.prototype.compile = function() {return this.strtype+this.val+this.strtype};
 	// Block
-	JS.Block = function(o, args) {
+	JS.Block = function(o, args, q, r) {
 		this.val = o;
 		this.args = args;
+		this.quoted = q || false;
+		this.reversed = r || false;
 	};
 	JS.Block.prototype.toString = function() {
 		return '('+this.val+' '+this.args.map(toString).join(' ')+')';
@@ -273,18 +294,26 @@ var Wortel = (function() {
 		// binary
 		'&': function(args, body) {return new JS.ExprFn('', wrap(args), body)},
 		'!': function(fn, args) {return new JS.FnCall(fn, wrap(args))},
+		'\\': function(bl, arg) {
+			if(bl instanceof JS.Block && !(arg instanceof JS.Array)) {
+				for(var i = 0, n = operators[bl.val].length-1, args = []; i < n; i++) args.push(randVar());
+				return new JS.ExprFn('', args, operators[bl.val].apply(null, bl.reversed? args.concat([arg]): [arg].concat(args)));
+			} else return new JS.FnCall('Function.prototype.bind.call', [bl, new JS.Name('this'), arg]);
+		},
 		// ternary
 		'@!': function(fn, x, y) {return new JS.FnCall(fn, [x, y])},
 	
 		// Wortel
 		'@': function() {return new JS.Empty()},
+		'~': function() {return new JS.Empty()},
 		// unary
 		'@comment': function(s) {return new JS.Empty()},
 	};
 
 	return {
-		compile: compile
+		compile: compile,
+		parse: parse
 	};
 })();
 
-console.log(Wortel.compile('&a&b + a b @comment "as\ndas"'));
+console.log(Wortel.compile('\\~% 2'));
