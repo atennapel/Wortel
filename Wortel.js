@@ -1,14 +1,15 @@
 /*
 	Wortel
 	@author: Albert ten Napel
-	@version: 0.1
+	@version: 0.3
 
 	TODO:
 		add operators
-		complex names
-		complex numbers
-		fix strings with newlines
-		string interpolation
+		regexp literals
+		what do parentheses do?
+		improve names
+		improve numbers
+		improve string interpolation
 */
 
 var Wortel = (function() {
@@ -157,24 +158,101 @@ var Wortel = (function() {
 	function mCompile(x) {return x.compile()};
 	var JS = {};
 	// Number
-	JS.Number = function(n) {
-		this.val = n;
-	};
+	JS.Number = function(n) {this.val = (''+n) || '0'};
 	JS.Number.prototype.toString = function() {return ''+this.val};
-	JS.Number.prototype.compile = function() {return ''+this.val};
+	JS.Number.prototype.compile = function() {
+		if(/^(0x[0-9af]+|0[0-7]+)$/i.test(this.val)) return ''+this.val;
+		if(/^[0-9]+x/.test(this.val)) {
+			var f = this.val.match(/^[0-9]+x/)[0];
+			return ''+parseInt(this.val.slice(f.length), f.slice(0, -1));
+		}
+		var fn, val;
+		if(this.val[this.val.length-1] == 'F') {
+			fn = true;
+			val = this.val.slice(0, -1);
+		} else fn = false, val = this.val;
+		var seps = val.match(/[a-z]+/g);
+		var t = val.match(/[0-9\.]+[A-Z]*/g).map(function(x) {
+			var n = 0;
+			var s = x.match(/[0-9]+|[0-9]+\.[0-9]+|[A-Z]/g);
+			while(s.length > 0) {
+				var c = s.shift(), na = +c;
+				if(!isNaN(na)) n = na;
+				else if(c == 'T') n *= 10;
+				else if(c == 'H') n *= 100;
+				else if(c == 'K') n *= 1e3;
+				else if(c == 'M') n *= 1e6;
+				else if(c == 'B') n *= 1e9;
+				else if(c == 'P') n *= Math.PI;
+				else if(c == 'V') n = Math.sqrt(n);
+				else if(c == 'N') n *= -1;
+				else throw 'Unknown number modifier: '+c;
+			}
+			return n;
+		}).reduce(function(a, b, i) {
+			var sep = seps[i-1];
+			if(sep == 'p') return Math.pow(a, b);
+			if(sep == 'rp') return Math.pow(b, a);
+			if(sep == 'e') return a*Math.pow(10, b);
+			if(sep == 're') return b*Math.pow(10, a);
+			if(sep == 'd') return a/b;
+			if(sep == 'rd') return b/a;
+			if(sep == 'a') return a+b;
+			if(sep == 'm') return a*b;
+			if(sep == 's') return a-b;
+			if(sep == 'rs') return b-a;
+		});
+		return fn? '(function(){return '+t+'})': ''+t;
+	};
 	// Name
 	JS.Name = function(n) {
-		this.val = n;
+		this.val = n || 'undefined';
 	};
 	JS.Name.prototype.toString = function() {return ''+this.val};
-	JS.Name.prototype.compile = function() {return ''+this.val};
+	JS.Name.prototype.compile = function() {
+		if(this.val === '.') return 'undefined';
+		if(this.val === '..') return 'function(x){return x}';
+		var t = this.val.replace(/(\.[0-9]+\.)|(\.[0-9]+$)/g,
+			function(a) {
+				return a[a.length-1]==='.'?
+					'['+a.substring(1, a.length-1)+'].':
+					'['+a.substring(1)+']'
+			}
+		).replace(/\.\./g, '().').replace('.[', '()[');
+		if(t[t.length-1] === '.') t = t.substring(0, t.length-1)+'()';
+		if(t[0] === '.' || t[0] === '[') return 'function(x){return x'+t+'}';
+		return ''+t;
+	};
 	// String
 	JS.String = function(s, strtype) {
-		this.val = s;
-		this.strtype = strtype;
+		this.val = s.replace(/\n/g, '\\n') || '';
+		this.type = strtype || "'";
 	};
-	JS.String.prototype.toString = function() {return this.strtype+this.val+this.strtype};
-	JS.String.prototype.compile = function() {return this.strtype+this.val+this.strtype};
+	JS.String.prototype.toString = function() {return this.type+this.val+this.type};
+	JS.String.prototype.compile = function() {
+		if(this.type === '"' && /([^\\]|^)\{/g.test(this.val)) {
+			var START = 0, EXPR = 1;
+			var state = START, level = 0, re = [], te = [];
+			for(var i=0,l=this.val.length;i<l;i++) {
+				var c = this.val[i], pc = this.val[i-1];
+				if(state === START) {
+					if(c === '{' && pc !== '\\') te.push({type: 'str', val: re.join('')}), re = [], state = EXPR, level = 1;
+					else re.push(c);
+				} else if(state === EXPR) {
+					if(c === '{') re.push(c), level++;
+					else if(c === '}') {
+						level--;
+						if(level === 0) {
+							te.push({type: 'expr', val: re.join('')}), re = [], state = START;
+						} else re.push(c);
+					} else re.push(c);
+				}	
+			}
+			if(re.length > 0) te.push({type: 'str', val: re.join('')});
+			if(te[0].type !== 'str') te = [{type:'str',val:''}].concat(te);
+			return te.map((function(x) {return x.type === 'str'? this.type+x.val+this.type:'('+compile(x.val)+')'}).bind(this)).join(' + ');
+		} else return this.type+this.val+this.type;
+	};
 	// Block
 	JS.Block = function(o, args, q, r) {
 		this.val = o;
@@ -305,16 +383,17 @@ var Wortel = (function() {
 		'@!': function(fn, x, y) {return new JS.FnCall(fn, [x, y])},
 	
 		// Wortel
-		'@': function(bl) {
+		'~': function() {return new JS.Empty()},
+		'@': function() {return new JS.Empty()},
+		// unary
+		'@comment': function(s) {return new JS.Empty()},
+		'^': function(bl) {
 			if(bl instanceof JS.Block) {
 				for(var i = 0, n = operators[bl.val].length, args = []; i < n; i++) args.push(randVar());
 				return new JS.ExprFn('', args, operators[bl.val].apply(null, args));
-			}
+			} else if(bl instanceof JS.Name) return new JS.Name('this.'+bl.val);
 			return new JS.Empty();
 		},
-		'~': function() {return new JS.Empty()},
-		// unary
-		'@comment': function(s) {return new JS.Empty()},
 	};
 
 	return {
@@ -322,5 +401,3 @@ var Wortel = (function() {
 		parse: parse
 	};
 })();
-
-console.log(Wortel.compile('!@@not true'));
