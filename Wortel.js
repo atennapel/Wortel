@@ -1,7 +1,7 @@
 /*
 	Wortel
 	@author: Albert ten Napel
-	@version: 0.3
+	@version: 0.4
 
 	TODO:
 		add operators
@@ -13,12 +13,13 @@
 */
 
 var Wortel = (function() {
+	var version = 0.4;
 	var _randN = 0;
 	function randVar() {return new JS.Name('_var'+(_randN++))}
 		
 	// Parser
 	var symbols = '~`!@#%^&*-+=|\\:;?/><,';
-	var quoteSymbols = '\\@';
+	var quoteSymbols = '\\^';
 	function isSymbol(c) {return symbols.indexOf(c) != -1};
 	var brackets = '()[]{}';
 	function isBracket(c) {return brackets.indexOf(c) != -1};
@@ -327,6 +328,18 @@ var Wortel = (function() {
 	JS.FnCall.prototype.compile = function() {
 		return (typeof this.fn == 'string'? this.fn: '('+this.fn.compile()+')')+'('+this.args.map(mCompile).join(',')+')';
 	};
+	// MethodCall
+	JS.MethodCall = function(o, mtd, args) {
+		this.o = o;
+		this.mtd = mtd;
+		this.args = args;
+	};
+	JS.MethodCall.prototype.compile = function() {
+		if(this.mtd instanceof JS.String)
+			return '('+this.o.compile()+')['+this.mtd.compile()+']('+this.args.map(mCompile).join(',')+')';
+		else
+			return '('+this.o.compile()+').'+(typeof this.mtd == 'string'? this.mtd: this.mtd.compile())+'('+this.args.map(mCompile).join(',')+')';
+	};
 	// ExprFn
 	JS.ExprFn = function(name, args, body) {
 		this.name = name;
@@ -372,15 +385,29 @@ var Wortel = (function() {
 		// Function
 		// binary
 		'&': function(args, body) {return new JS.ExprFn('', wrap(args), body)},
-		'!': function(fn, args) {return new JS.FnCall(fn, wrap(args))},
+		'!': function(fn, args) {return new JS.FnCall(fn, [args])},
+		'@!': function(fn, list) {
+			if(list instanceof JS.Array)
+				return new JS.FnCall(fn, list.val);
+			else return new JS.MethodCall(fn, 'apply', [new JS.Name('null'), list]);
+		},
 		'\\': function(bl, arg) {
 			if(bl instanceof JS.Block && !(arg instanceof JS.Array)) {
 				for(var i = 0, n = operators[bl.val].length-1, args = []; i < n; i++) args.push(randVar());
 				return new JS.ExprFn('', args, operators[bl.val].apply(null, bl.reversed? args.concat([arg]): [arg].concat(args)));
-			} else return new JS.FnCall('Function.prototype.bind.call', [bl, new JS.Name('this'), arg]);
+			} else return new JS.MethodCall(bl, 'bind', [new JS.Name('this'), arg]);
 		},
 		// ternary
-		'@!': function(fn, x, y) {return new JS.FnCall(fn, [x, y])},
+		'!!': function(fn, x, y) {return new JS.FnCall(fn, [x, y])},
+
+		// Array
+		// binary
+		',': function(a, b) {return new JS.MethodCall(a instanceof JS.String || a instanceof JS.Number? new JS.Array([a]): a, 'concat', [b])},
+		'!*': function(fn, a) {return new JS.MethodCall(a, 'map', [fn])},
+		'!/': function(fn, a) {return new JS.MethodCall(a, 'reduce', [fn])},
+		'!-': function(fn, a) {return new JS.MethodCall(a, 'filter', [fn])},
+		// ternary
+		'@fold': function(fn, v, a) {return new JS.MethodCall(a, 'reduce', [fn, v])},
 	
 		// Wortel
 		'~': function() {return new JS.Empty()},
@@ -398,6 +425,49 @@ var Wortel = (function() {
 
 	return {
 		compile: compile,
-		parse: parse
+		parse: parse,
+		version: version
 	};
 })();
+
+// Node.js
+if(typeof global != 'undefined' && global) {
+	// Export
+	if(module && module.exports) module.exports = Wortel;
+	// Commandline
+	if(require.main === module) {
+		var args = process.argv.slice(2), l = args.length;
+		if(l === 0) {
+			// REPL
+			console.log('Wortel '+Wortel.version+' REPL');
+			var PARSEMODE = 0, EVALMODE = 1, mode = EVALMODE;
+			process.stdin.setEncoding('utf8');
+			function input() {
+				process.stdout.write('> ');
+				process.stdin.once('data', function(s) {
+					try {
+						if(s.trim() == 'setModeParse') mode = PARSEMODE;
+						else if(s.trim() == 'setModeEval') mode = EVALMODE;
+						else if(mode == PARSEMODE) console.log(Wortel.compile(s));
+						else if(mode == EVALMODE) console.log(eval(Wortel.compile(s)));
+					} catch(e) {
+						console.log('Error: '+e);
+					}
+					input();
+				}).resume();
+			};
+			input();
+		} else {
+			var f = args[0];
+			if(f) {
+				var fs = require('fs');
+				fs.readFile(f, 'ascii', function(e, s) {
+					if(e) console.log('Error: ', e);
+					else {
+						console.log(Wortel.compile(s));
+					}
+				});
+			}
+		}
+	}
+}
