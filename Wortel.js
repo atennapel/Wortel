@@ -10,6 +10,7 @@
 		improve names
 		improve numbers
 		improve string interpolation
+		add lib fns (_mod and _extends)
 */
 
 var Wortel = (function() {
@@ -187,6 +188,7 @@ var Wortel = (function() {
 				else if(c == 'P') n *= Math.PI;
 				else if(c == 'V') n = Math.sqrt(n);
 				else if(c == 'N') n *= -1;
+				else if(c == 'S') n *= n;
 				else throw 'Unknown number modifier: '+c;
 			}
 			return n;
@@ -364,6 +366,8 @@ var Wortel = (function() {
 		'*': function(x, y) {return new JS.BinOp('*', x, y)},
 		'/': function(x, y) {return new JS.BinOp('/', x, y)},
 		'%': function(x, y) {return new JS.BinOp('%', x, y)},
+		'%%': function(x, y) {return new JS.BinOp('==', new JS.BinOp('%', x, y), new JS.Number(0))},
+		'@%': function(x, y) {return new JS.BinOp('%', new JS.BinOp('+', new JS.BinOp('%', x, y), y), y)},
 		'^': function(x, y) {return new JS.FnCall('Math.pow', [x, y])},
 
 		// Boolean
@@ -383,6 +387,18 @@ var Wortel = (function() {
 		'&&': function(x, y) {return new JS.BinOp('&', x, y)},
 
 		// Function
+		// unary
+		'@': function(l) {
+			if(l instanceof JS.Array) {
+				var a = l.val;
+				if(a.length == 0) return new JS.ExprFn('', [new JS.Name('x')], new JS.Name('x'));
+				if(a.length == 1) return new JS.ExprFn('', [], operators['@!'](a[0], new JS.Name('arguments')));
+				var cur = operators['@!'](a[a.length-1], new JS.Name('arguments'));
+				for(var i = a.length-2; i >= 0; i--)
+					cur = new JS.FnCall(a[i], [cur]);
+				return new JS.ExprFn('', [], cur);
+			}
+		},
 		// binary
 		'&': function(args, body) {return new JS.ExprFn('', wrap(args), body)},
 		'!': function(fn, args) {return new JS.FnCall(fn, [args])},
@@ -411,7 +427,6 @@ var Wortel = (function() {
 	
 		// Wortel
 		'~': function() {return new JS.Empty()},
-		'@': function() {return new JS.Empty()},
 		// unary
 		'@comment': function(s) {return new JS.Empty()},
 		'^': function(bl) {
