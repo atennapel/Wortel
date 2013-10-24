@@ -17,6 +17,7 @@ var Wortel = (function() {
 		
 	// Parser
 	var symbols = '~`!@#%^&*-+=|\\:;?/><,';
+	var quoteSymbols = '\\@';
 	function isSymbol(c) {return symbols.indexOf(c) != -1};
 	var brackets = '()[]{}';
 	function isBracket(c) {return brackets.indexOf(c) != -1};
@@ -67,7 +68,7 @@ var Wortel = (function() {
 				r.splice(i, 2, r[i+1]);
 			}
 		for(var i = 0, c; c = r[i], i < r.length; i++)
-			if(c.type == 'symbol' && c.val == '\\' && r[i+1].type == 'symbol')
+			if(c.type == 'symbol' && quoteSymbols.indexOf(c.val) != -1 && r[i+1].type == 'symbol')
 				r[i+1].quoted = true;
 
 		return toAST(groupBrackets(r));
@@ -304,7 +305,13 @@ var Wortel = (function() {
 		'@!': function(fn, x, y) {return new JS.FnCall(fn, [x, y])},
 	
 		// Wortel
-		'@': function() {return new JS.Empty()},
+		'@': function(bl) {
+			if(bl instanceof JS.Block) {
+				for(var i = 0, n = operators[bl.val].length, args = []; i < n; i++) args.push(randVar());
+				return new JS.ExprFn('', args, operators[bl.val].apply(null, args));
+			}
+			return new JS.Empty();
+		},
 		'~': function() {return new JS.Empty()},
 		// unary
 		'@comment': function(s) {return new JS.Empty()},
@@ -316,4 +323,4 @@ var Wortel = (function() {
 	};
 })();
 
-console.log(Wortel.compile('\\~% 2'));
+console.log(Wortel.compile('!@@not true'));
