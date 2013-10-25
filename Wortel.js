@@ -448,6 +448,17 @@ var Wortel = (function() {
 		'@r': function(s, m) {return new JS.RegExp(s, m)},
 
 		// Array
+		// unary
+		'@til': function(n) {
+			return new JS.MethodCall(
+				new JS.FnCall('Object.keys', [new JS.FnCall('Array.apply', [new JS.Name('null'), new JS.Object([new JS.Name('length'), n])])]),
+				'map', [new JS.ExprFn('', [new JS.Name('x')], new JS.UnOp('+', new JS.Name('x')))]);
+		},
+		'@to': function(n) {
+			return new JS.MethodCall(
+				new JS.FnCall('Object.keys', [new JS.FnCall('Array.apply', [new JS.Name('null'), new JS.Object([new JS.Name('length'), n])])]),
+				'map', [new JS.ExprFn('', [new JS.Name('x')], new JS.BinOp('+', new JS.UnOp('+', new JS.Name('x')), new JS.Number(1)))]);
+		},
 		// binary
 		',': function(a, b) {return new JS.MethodCall(a instanceof JS.String || a instanceof JS.Number? new JS.Array([a]): a, 'concat', [b])},
 		'!*': function(fn, a) {return new JS.MethodCall(a, 'map', [fn])},

@@ -20,12 +20,14 @@ Programming language that compiles to Javascript
 		<= x 1 		1
 		*n !fac -n 1
 	}
+	fac2 &n !/^* @to n
+	fac3 @[\!/^*\@to]
+	fac4 @(!/^*@to)
 	isPrime &n?{
 		<= n 1 	false
 		= n 2 	true
 		@none \%%n @range [2 -n 1]
 	}
-	fac2 \!/^*
 }
 
 :`.innerHTML!document.getElementById 'output' ~! ', ' `.join !*&n "{n} -> {!fac n}" @to 10
