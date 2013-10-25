@@ -6,7 +6,6 @@
 	TODO:
 		add operators
 		regexp literals
-		what do parentheses do?
 		improve names
 		improve numbers
 		improve string interpolation
@@ -160,19 +159,17 @@ var Wortel = (function() {
 	function mCompile(x) {return x.compile()};
 	var JS = {};
 	// Number
-	JS.Number = function(n) {this.val = (''+n) || '0'};
-	JS.Number.prototype.toString = function() {return ''+this.val};
-	JS.Number.prototype.compile = function() {
-		if(/^(0x[0-9af]+|0[0-7]+)$/i.test(this.val)) return ''+this.val;
-		if(/^[0-9]+x/.test(this.val)) {
-			var f = this.val.match(/^[0-9]+x/)[0];
-			return ''+parseInt(this.val.slice(f.length), f.slice(0, -1));
+	function compileNumber(str) {
+		if(/^(0x[0-9af]+|0[0-7]+)$/i.test(str)) return ''+str;
+		if(/^[0-9]+x/.test(str)) {
+			var f = str.match(/^[0-9]+x/)[0];
+			return ''+parseInt(str.slice(f.length), f.slice(0, -1));
 		}
 		var fn, val;
-		if(this.val[this.val.length-1] == 'F') {
+		if(str[str.length-1] == 'F') {
 			fn = true;
-			val = this.val.slice(0, -1);
-		} else fn = false, val = this.val;
+			val = str.slice(0, -1);
+		} else fn = false, val = str;
 		var seps = val.match(/[a-z]+/g);
 		var t = val.match(/[0-9\.]+[A-Z]*/g).map(function(x) {
 			var n = 0;
@@ -207,23 +204,26 @@ var Wortel = (function() {
 		});
 		return fn? '(function(){return '+t+'})': ''+t;
 	};
+	JS.Number = function(n) {this.val = (''+n) || '0'};
+	JS.Number.prototype.toString = function() {return ''+this.val};
+	JS.Number.prototype.compile = function() {return compileNumber(this.val)};
 	// Name
 	JS.Name = function(n) {
 		this.val = n || 'undefined';
 	};
 	JS.Name.prototype.toString = function() {return ''+this.val};
-	JS.Name.prototype.compile = function() {
-		if(this.val === '.') return 'undefined';
+	JS.Name.prototype.compile = function(nofn) {
+		if(this.val === '.') return 'null';
 		if(this.val === '..') return 'function(x){return x}';
-		var t = this.val.replace(/(\.[0-9]+\.)|(\.[0-9]+$)/g,
+		var t = this.val.replace(/(\.[0-9][0-9a-z]*\.)|(\.[0-9][0-9a-z]*$)/gi,
 			function(a) {
 				return a[a.length-1]==='.'?
-					'['+a.substring(1, a.length-1)+'].':
-					'['+a.substring(1)+']'
+					'['+compileNumber(a.substring(1, a.length-1))+'].':
+					'['+compileNumber(a.substring(1))+']'
 			}
 		).replace(/\.\./g, '().').replace('.[', '()[');
 		if(t[t.length-1] === '.') t = t.substring(0, t.length-1)+'()';
-		if(t[0] === '.' || t[0] === '[') return 'function(x){return x'+t+'}';
+		if(!nofn && t[0] === '.' || t[0] === '[') return '(function(x){return x'+t+'})';
 		return ''+t;
 	};
 	// String
@@ -287,7 +287,7 @@ var Wortel = (function() {
 		return '('+this.val.map(toString).join(' ')+')';
 	};
 	JS.Group.prototype.compile = function() {
-		return '('+this.val.map(mCompile).join(',')+')';
+		return this.val.length == 0? 'undefined': '('+this.val.map(mCompile).join(',')+')';
 	};
 	// Object
 	JS.Object = function(a) {
@@ -352,6 +352,33 @@ var Wortel = (function() {
 		return '(function '+(!this.name? '': typeof this.name == 'string'? this.name: this.name.compile())+
 			'('+this.args.map(mCompile).join(',')+'){return '+this.body.compile()+'})';
 	};
+	// Index
+	JS.Index = function(a, i) {
+		this.a = a;
+		this.i = i;
+	};
+	JS.Index.prototype.compile = function() {
+		return '('+this.a.compile()+')'+
+			(this.i instanceof JS.Name && this.i.val[0] == '.'? this.i.compile(true): '['+this.i.compile()+']');
+	};
+	// Prefix
+	JS.Prefix = function(p, x) {
+		this.p = p;
+		this.x = x;
+	};
+	JS.Prefix.prototype.compile = function() {return this.p+this.x.compile()};
+	// RegExp
+	JS.RegExp = function(r, m) {
+		this.r = r;
+		this.m = m;
+	};
+	JS.RegExp.prototype.compile = function() {
+		var m = !this.m.val || (this.m instanceof JS.Name && this.m.val == '.')? '':
+						this.m instanceof JS.Array || this.m instanceof JS.Group?
+							this.m.val.map(mCompile).join(''): this.m.compile();
+		return this.r instanceof JS.String? '/'+this.r.val+'/'+m: '(new RegExp('+this.r.compile()+',"'+m+'"))';
+	};
+
 
 	function wrap(a) {return a instanceof JS.Array? a.val: [a]};
 	// Operators
@@ -416,14 +443,27 @@ var Wortel = (function() {
 		// ternary
 		'!!': function(fn, x, y) {return new JS.FnCall(fn, [x, y])},
 
+		// String
+		// binary
+		'@r': function(s, m) {return new JS.RegExp(s, m)},
+
 		// Array
 		// binary
 		',': function(a, b) {return new JS.MethodCall(a instanceof JS.String || a instanceof JS.Number? new JS.Array([a]): a, 'concat', [b])},
 		'!*': function(fn, a) {return new JS.MethodCall(a, 'map', [fn])},
 		'!/': function(fn, a) {return new JS.MethodCall(a, 'reduce', [fn])},
 		'!-': function(fn, a) {return new JS.MethodCall(a, 'filter', [fn])},
+		'`': function(i, a) {return new JS.Index(a, i)},
 		// ternary
 		'@fold': function(fn, v, a) {return new JS.MethodCall(a, 'reduce', [fn, v])},
+
+		// JS Keywords
+		// unary
+		'@return': function(x) {return new JS.Prefix('return ', x)},
+		'@typeof': function(x) {return new JS.Prefix('typeof ', x)},
+		// binary
+		'@new': function(x, a) {return new JS.Prefix('new ', new JS.FnCall(x, wrap(a)))},
+		'@instanceof': function(x, y) {return new JS.BinOp(' instanceof ', x, y)},
 	
 		// Wortel
 		'~': function() {return new JS.Empty()},
