@@ -149,13 +149,13 @@ var Wortel = (function() {
 	};
 
 	// Compilation
-	function toJS(ast) {
-		var astc = ast.map(mCompile);
-		var lib = []; for(var k in curLibs) lib.push(Lib[k].compile());
+	function toJS(ast, sub) {
+		var astc = ast.map(mCompile), lib = [];
+		if(!sub) for(var k in curLibs) lib.push(Lib[k].compile());
 		return lib.concat(astc).filter(function(x) {return x}).join(';');
 	};
 
-	function compile(s) {return toJS(parse(s))};
+	function compile(s, sub) {return toJS(parse(s), sub)};
 
 	// Expr
 	function toString(x) {return x.toString()};
@@ -266,7 +266,7 @@ var Wortel = (function() {
 			}
 			if(re.length > 0) te.push({type: 'str', val: re.join('')});
 			if(te[0].type !== 'str') te = [{type:'str',val:''}].concat(te);
-			return te.map((function(x) {return x.type === 'str'? this.type+x.val+this.type:'('+compile(x.val)+')'}).bind(this)).join(' + ');
+			return te.map((function(x) {return x.type === 'str'? this.type+x.val+this.type:'('+compile(x.val, true)+')'}).bind(this)).join(' + ');
 		} else return this.type+this.val+this.type;
 	};
 	// Block
@@ -686,8 +686,8 @@ if(typeof global != 'undefined' && global) {
 					try {
 						if(s.trim() == 'setModeParse') mode = PARSEMODE;
 						else if(s.trim() == 'setModeEval') mode = EVALMODE;
-						else if(mode == PARSEMODE) console.log(Wortel.compile(s));
-						else if(mode == EVALMODE) console.log(eval(Wortel.compile(s)));
+						else if(mode == PARSEMODE) console.log(Wortel.compile(s, true));
+						else if(mode == EVALMODE) console.log(eval(Wortel.compile(s, true)));
 					} catch(e) {
 						console.log('Error: '+e);
 					}
