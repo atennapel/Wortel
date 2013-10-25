@@ -5,17 +5,15 @@
 
 	TODO:
 		add operators
-		regexp literals
 		improve names
 		improve numbers
 		improve string interpolation
-		add lib fns (_mod and _extends)
 */
 
 var Wortel = (function() {
-	var version = 0.4;
+	var version = 0.5;
 	var _randN = 0;
-	function randVar() {return new JS.Name('_var'+(_randN++))}
+	function randVar() {return new JS.Name('_'+(_randN++))}
 		
 	// Parser
 	var symbols = '~`!@#%^&*-+=|\\:?/><,';
@@ -408,32 +406,107 @@ var Wortel = (function() {
 							this.m.val.map(mCompile).join(''): this.m.compile();
 		return this.r instanceof JS.String? '/'+this.r.val+'/'+m: '(new RegExp('+this.r.compile()+',"'+m+'"))';
 	};
-	
+	// Ternary
+	JS.Ternary = function(a) {
+		this.a = a;
+	};
+	JS.Ternary.prototype.compile = function() {
+		var a = this.a, l = a.length;
+		if(l == 0) return 'null';
+		if(l == 1) return a[0].compile();
+		if(l == 2) return '('+a[0].compile()+'?'+a[1].compile()+':null)';
+		if(l == 3) return '('+a[0].compile()+'?'+a[1].compile()+':'+a[2].compile()+')';
+
+		for(var i = 0, r = []; i < l; i += 2) {
+			var cond = a[i], val = a[i+1];
+			r.push(
+				val === undefined?
+					':' + cond.compile():
+					(i > 0? ':': '') + cond.compile() + '?' + val.compile()
+			);
+		}
+		if(l % 2 == 0) r.push(':null');
+		return '('+r.join('')+')';
+	};
+	// If
+	function compileArray(a) {
+		return wrap(a).map(mCompile).join(';');
+	};
+	JS.If = function(a) {
+		this.a = a;
+	};
+	JS.If.prototype.compile = function() {
+		var a = this.a, l = a.length;
+		if(l == 0) return 'null';
+		if(l == 1) return a[0].compile();
+		if(l == 2) return 'if('+a[0].compile()+'){'+compileArray(a[1])+'}';
+		if(l == 3) return 'if('+a[0].compile()+'){'+compileArray(a[1])+'}else{'+compileArray(a[2])+'}';
+
+		for(var i = 0, r = []; i < l; i += 2) {
+			var cond = a[i], val = a[i+1];
+			r.push(
+				val === undefined?
+					'else{' + compileArray(cond) + '}':
+					(i > 0? 'else if(': 'if(') + cond.compile() + '){' + compileArray(val) + '}'
+			);
+		}
+		return r.join('');
+	};
+	// While
+	JS.While = function(c, a) {
+		this.c = c;
+		this.a = a;
+	};
+	JS.While.prototype.compile = function() {
+		return 'while('+this.c.compile()+'){'+compileArray(this.a)+'}';
+	};
+	// Assigment
+	JS.Assigment = function(o) {
+		this.o = o;
+	};
+	JS.Assigment.prototype.compile = function() {
+		for(var i = 0, a = this.o, l = a.length, r = []; i < l; i += 2) {
+			var k = a[i], v = a[i+1];
+			r.push(k.compile() + '=' + v.compile());
+		}
+		return r.join(',');
+	};
+	// CommaList
+	JS.CommaList = function(a) {
+		this.a = a;
+	};
+	JS.CommaList.prototype.compile = function() {
+		return this.a.map(mCompile).join(',');
+	};
+
 	// Lib
-	
-	/*
-function _range(a, b, s) {
-	var r = [];
-	if(a <= b) {
-		var s = s || 1;
-		while(a < b) {
-			r.push(a);
-			a += s;
-		} 
-	} else if(a > b) {
-		var s = s || -1;
-		while(a > b) {
-			r.push(a);
-			a += s;
-		} 
-	}
-	return r;
-}
- */
-	
 	var Lib = {
 		'_mod': new JS.ExprFn('_mod', [new JS.Name('x'), new JS.Name('y')],
 			new JS.BinOp('%', new JS.BinOp('+', new JS.BinOp('%', new JS.Name('x'), new JS.Name('y')), new JS.Name('y')), new JS.Name('y')), true),
+		'_range': new JS.Fn('_range', [new JS.Name('o')], [
+			new JS.Prefix('var ', new JS.Assigment([
+				new JS.Name('a'), new JS.Index(new JS.Name('o'), new JS.Number('0')), 
+				new JS.Name('b'), new JS.Index(new JS.Name('o'), new JS.Number('1')), 
+				new JS.Name('c'), new JS.Index(new JS.Name('o'), new JS.Number('2')), 
+				new JS.Name('r'), new JS.Array([])
+			])),
+			new JS.If([
+				new JS.BinOp('<=', new JS.Name('a'), new JS.Name('b')), new JS.Array([
+					new JS.Prefix('var ', new JS.Assigment([new JS.Name('s'), new JS.BinOp('||', new JS.Name('c'), new JS.Number('1'))])),
+					new JS.While(new JS.BinOp('<', new JS.Name('a'), new JS.Name('b')), new JS.Array([
+						new JS.FnCall('r.push', [new JS.Name('a')]),
+						new JS.BinOp('+=', new JS.Name('a'), new JS.Name('s'))
+					]))
+				]), new JS.Array([
+					new JS.Prefix('var ', new JS.Assigment([new JS.Name('s'), new JS.BinOp('||', new JS.Name('c'), new JS.UnOp('-', new JS.Number('1')))])),
+					new JS.While(new JS.BinOp('>', new JS.Name('a'), new JS.Name('b')), new JS.Array([
+						new JS.FnCall('r.push', [new JS.Name('a')]),
+						new JS.BinOp('+=', new JS.Name('a'), new JS.Name('s'))
+					]))
+				])
+			]),
+			new JS.Prefix('return ', new JS.Name('r'))
+		], true),
 	};
 	function addLibTo(obj) {
 		for(var k in Lib) obj[k] = eval('('+Lib[k].compile()+')');
@@ -446,10 +519,14 @@ function _range(a, b, s) {
 				addLib(a[i]);
 	};
 	var opLibsReq = {
-		'@%': ['_mod']
+		'@%': ['_mod'],
+		'@to': ['_range'],
+		'@til': ['_range'],
+		'@range': ['_range'],
 	};
 	var opToLib = {
-		'@%': '_mod'
+		'@%': '_mod',
+		'@range': '_range'
 	};
 
 	function wrap(a) {return a instanceof JS.Array? a.val: [a]};
@@ -529,14 +606,13 @@ function _range(a, b, s) {
 		// Array
 		// unary
 		'@til': function(n) {
-			return new JS.MethodCall(
-				new JS.FnCall('Object.keys', [new JS.FnCall('Array.apply', [new JS.Name('null'), new JS.Object([new JS.Name('length'), n])])]),
-				'map', [new JS.ExprFn('', [new JS.Name('x')], new JS.UnOp('+', new JS.Name('x')))]);
+			return new JS.FnCall('_range', [new JS.Array([new JS.Number('0'), n])]);
 		},
 		'@to': function(n) {
-			return new JS.MethodCall(
-				new JS.FnCall('Object.keys', [new JS.FnCall('Array.apply', [new JS.Name('null'), new JS.Object([new JS.Name('length'), n])])]),
-				'map', [new JS.ExprFn('', [new JS.Name('x')], new JS.BinOp('+', new JS.UnOp('+', new JS.Name('x')), new JS.Number(1)))]);
+			return new JS.FnCall('_range', [new JS.Array([new JS.Number('1'), new JS.BinOp('+', n, new JS.Number('1'))])]);
+		},
+		'@range': function(o) {
+			return new JS.FnCall('_range', [o]);
 		},
 		// binary
 		',': function(a, b) {return new JS.MethodCall(a instanceof JS.String || a instanceof JS.Number? new JS.Array([a]): a, 'concat', [b])},
@@ -551,9 +627,19 @@ function _range(a, b, s) {
 		// unary
 		'@return': function(x) {return new JS.Prefix('return ', x)},
 		'@typeof': function(x) {return new JS.Prefix('typeof ', x)},
+		'?': function(o) {return new JS.Ternary(o.val)},
+		'@if': function(o) {return new JS.If(o.val)},
+		'@:': function(o) {return new JS.Assigment(o.val)},
+		'@var': function(o) {
+			if(o instanceof JS.Object) return new JS.Prefix('var ', new JS.Assigment(o.val));
+			if(o instanceof JS.Array) return new JS.Prefix('var ', new JS.CommaList(o.val));
+		},
 		// binary
+		':': function(k, v) {return new JS.Assigment([k, v])},
+		'@v': function(k, v) {return new JS.Prefix('var ', new JS.Assigment([k, v]))},
 		'@new': function(x, a) {return new JS.Prefix('new ', new JS.FnCall(x, wrap(a)))},
 		'@instanceof': function(x, y) {return new JS.BinOp(' instanceof ', x, y)},
+		'@while': function(c, a) {return new JS.While(c, a)},
 	
 		// Wortel
 		'~': function() {return new JS.Empty()},
