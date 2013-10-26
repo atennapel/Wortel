@@ -478,6 +478,14 @@ var Wortel = (function() {
 	JS.CommaList.prototype.compile = function() {
 		return this.a.map(mCompile).join(',');
 	};
+	// Prop
+	JS.Prop = function(o, p) {
+		this.o = o;
+		this.p = p;
+	};
+	JS.Prop.prototype.compile = function() {
+		return '('+this.o.compile() + ').' + this.p.compile();
+	};
 
 	// Lib
 	var Lib = {
@@ -598,6 +606,7 @@ var Wortel = (function() {
 		},
 		// ternary
 		'!!': function(fn, x, y) {return new JS.FnCall(fn, [x, y])},
+		'`!': function(m, args, a) {return new JS.FnCall(new JS.Index(a, m), wrap(args))},
 
 		// String
 		// binary
@@ -605,6 +614,10 @@ var Wortel = (function() {
 
 		// Array
 		// unary
+		'#': function(n) {return new JS.Prop(n, new JS.Name('length'))},
+		'@head': function(n) {return new JS.Index(n, new JS.Number('0'))},
+		'@tail': function(n) {return new JS.MethodCall(n, 'slice', [new JS.Number('1')])},
+
 		'@til': function(n) {
 			return new JS.FnCall('_range', [new JS.Array([new JS.Number('0'), n])]);
 		},
@@ -636,10 +649,23 @@ var Wortel = (function() {
 		},
 		// binary
 		':': function(k, v) {return new JS.Assigment([k, v])},
+		'@let': function(o, expr) {return new JS.FnCall(new JS.Fn('', [], [new JS.Prefix('var ', new JS.Assigment(o.val)), new JS.Prefix('return ', expr)]), [])},
 		'@v': function(k, v) {return new JS.Prefix('var ', new JS.Assigment([k, v]))},
 		'@new': function(x, a) {return new JS.Prefix('new ', new JS.FnCall(x, wrap(a)))},
 		'@instanceof': function(x, y) {return new JS.BinOp(' instanceof ', x, y)},
 		'@while': function(c, a) {return new JS.While(c, a)},
+		'@?': function(x, o) {
+			var name = x instanceof JS.Name? x: randVar();
+			for(var i = 0, a = o.val, l = a.length, r = []; i < l; i += 2) {
+				var k = a[i], v = a[i+1];
+				if(v !== undefined) r.push(new JS.BinOp('==', name, k), v);
+				else r.push(k);
+			}
+			if(x instanceof JS.Name)
+				return new JS.Ternary(r);
+			else
+				return new JS.FnCall(new JS.Fn('', [], [new JS.Prefix('var ', new JS.Assigment([name, x])), new JS.Prefix('return ', new JS.Ternary(r))]), []);
+		},
 	
 		// Wortel
 		'~': function() {return new JS.Empty()},
