@@ -1,0 +1,3 @@
+!console.log @let {
+	nthFibo &n @last @rangef [0 1] ^+ &[v i] < i n 
+} !*nthFibo @to 10

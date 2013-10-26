@@ -1,7 +1,7 @@
 /*
 	Wortel
 	@author: Albert ten Napel
-	@version: 0.5
+	@version: 0.6
 
 	TODO:
 		add operators
@@ -11,7 +11,7 @@
 */
 
 var Wortel = (function() {
-	var version = 0.5;
+	var version = 0.6;
 	var _randN = 0;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
@@ -487,8 +487,39 @@ var Wortel = (function() {
 		return '('+this.o.compile() + ').' + this.p.compile();
 	};
 
+/*
+function _rangef(b, f, w) {
+	var r = Array.isArray(b)? b: [b], l = -f.length, i = r.length-1;
+	while(w(r[r.length-1], i)) {
+		r.push(f.apply(this, r.slice(l)));
+		i += 1;
+	}
+	return r;
+}
+*/
 	// Lib
 	var Lib = {
+		'_rangef': (function() {
+			var b = new JS.Name('b'), 
+					f = new JS.Name('f'), 
+					w = new JS.Name('w'), 
+					r = new JS.Name('r'), 
+					l = new JS.Name('l'), 
+					i = new JS.Name('i'), 
+					len = new JS.Name('length');
+			return new JS.Fn('_rangef', [b, f, w], [
+				new JS.Prefix('var ', new JS.Assigment([
+					r, new JS.Ternary([new JS.FnCall('Array.isArray', [b]), b, new JS.Array([b])]),
+					l, new JS.UnOp('-', new JS.Prop(f, len)),
+					i, new JS.BinOp('-', new JS.Prop(r, len), new JS.Number('1'))
+				])),
+				new JS.While(new JS.FnCall(w, [new JS.Index(r, new JS.BinOp('-', new JS.Prop(r, len), new JS.Number('1'))), i]), new JS.Array([
+					new JS.FnCall('r.push', [new JS.FnCall('f.apply', [new JS.Name('this'), new JS.FnCall('r.slice', [l])])]),
+					new JS.BinOp('+=', i, new JS.Number('1'))
+				])),
+				new JS.Prefix('return ', r)
+			], true)
+		})(),
 		'_mod': new JS.ExprFn('_mod', [new JS.Name('x'), new JS.Name('y')],
 			new JS.BinOp('%', new JS.BinOp('+', new JS.BinOp('%', new JS.Name('x'), new JS.Name('y')), new JS.Name('y')), new JS.Name('y')), true),
 		'_range': new JS.Fn('_range', [new JS.Name('o')], [
@@ -501,13 +532,13 @@ var Wortel = (function() {
 			new JS.If([
 				new JS.BinOp('<=', new JS.Name('a'), new JS.Name('b')), new JS.Array([
 					new JS.Prefix('var ', new JS.Assigment([new JS.Name('s'), new JS.BinOp('||', new JS.Name('c'), new JS.Number('1'))])),
-					new JS.While(new JS.BinOp('<', new JS.Name('a'), new JS.Name('b')), new JS.Array([
+					new JS.While(new JS.BinOp('<=', new JS.Name('a'), new JS.Name('b')), new JS.Array([
 						new JS.FnCall('r.push', [new JS.Name('a')]),
 						new JS.BinOp('+=', new JS.Name('a'), new JS.Name('s'))
 					]))
 				]), new JS.Array([
 					new JS.Prefix('var ', new JS.Assigment([new JS.Name('s'), new JS.BinOp('||', new JS.Name('c'), new JS.UnOp('-', new JS.Number('1')))])),
-					new JS.While(new JS.BinOp('>', new JS.Name('a'), new JS.Name('b')), new JS.Array([
+					new JS.While(new JS.BinOp('>=', new JS.Name('a'), new JS.Name('b')), new JS.Array([
 						new JS.FnCall('r.push', [new JS.Name('a')]),
 						new JS.BinOp('+=', new JS.Name('a'), new JS.Name('s'))
 					]))
@@ -531,10 +562,12 @@ var Wortel = (function() {
 		'@to': ['_range'],
 		'@til': ['_range'],
 		'@range': ['_range'],
+		'@rangef': ['_rangef'],
 	};
 	var opToLib = {
 		'@%': '_mod',
-		'@range': '_range'
+		'@range': '_range',
+		'@rangef': '_rangef'
 	};
 
 	function wrap(a) {return a instanceof JS.Array? a.val: [a]};
@@ -617,16 +650,16 @@ var Wortel = (function() {
 		'#': function(n) {return new JS.Prop(n, new JS.Name('length'))},
 		'@head': function(n) {return new JS.Index(n, new JS.Number('0'))},
 		'@tail': function(n) {return new JS.MethodCall(n, 'slice', [new JS.Number('1')])},
+		'@last': function(n) {return new JS.Index(new JS.MethodCall(n, 'slice', [new JS.UnOp('-', new JS.Number('1'))]), new JS.Number('0'))},
 
 		'@til': function(n) {
-			return new JS.FnCall('_range', [new JS.Array([new JS.Number('0'), n])]);
+			return new JS.FnCall('_range', [new JS.Array([new JS.Number('0'), new JS.BinOp('-', n, new JS.Number('1'))])]);
 		},
 		'@to': function(n) {
-			return new JS.FnCall('_range', [new JS.Array([new JS.Number('1'), new JS.BinOp('+', n, new JS.Number('1'))])]);
+			return new JS.FnCall('_range', [new JS.Array([new JS.Number('1'), n])]);
 		},
-		'@range': function(o) {
-			return new JS.FnCall('_range', [o]);
-		},
+		'@range': function(o) {return new JS.FnCall('_range', [o])},
+		'@rangef': function(a, b, c) {return new JS.FnCall('_rangef', [a, b, c])},
 		// binary
 		',': function(a, b) {return new JS.MethodCall(a instanceof JS.String || a instanceof JS.Number? new JS.Array([a]): a, 'concat', [b])},
 		'!*': function(fn, a) {return new JS.MethodCall(a, 'map', [fn])},
