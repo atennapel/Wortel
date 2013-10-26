@@ -192,7 +192,7 @@ var Wortel = (function() {
 				else if(c == 'N') n *= -1;
 				else if(c == 'S') n *= n;
 				else if(c == 'A') n /= 2;
-				else if(c == 'E') n *= 2;
+				else if(c == 'O') n *= 2;
 				else if(c == 'I') n += 1;
 				else if(c == 'D') n -= 1;
 				else if(c == 'R') n = Math.round(n);
@@ -216,6 +216,56 @@ var Wortel = (function() {
 			if(sep == 'c') return compileNumber(a + b);
 		});
 		return fn? '(function(){return '+t+'})': ''+t;
+	};
+	function compileMathFn(val, init) {
+		var str = val.replace(/\$|\_/g, '');
+		var seps = val.match(/[a-z]+/g);
+		var t = val.match(/[0-9\.]+[A-Z]*|[A-Z]+/g).map(function(x) {
+			if(/[a-w]/i.test(x[0]) && !init) return x;
+			
+			var n = init || new JS.Number('0');
+			var s = x.match(/[0-9]+\.[0-9]+|[0-9]+|[A-Z]/g);
+			while(s.length > 0) {
+				var c = s.shift(), na = +c;
+				if(!isNaN(na)) n = new JS.Number(''+na);
+				else if(c == 'X') n = new JS.Name('x');
+				else if(c == 'Y') n = new JS.Name('y');
+				else if(c == 'Z') n = new JS.Name('z');
+				else if(c == 'T') n = new JS.BinOp('*', n, new JS.Number('10'));
+				else if(c == 'H') n = new JS.BinOp('*', n, new JS.Number('100'));
+				else if(c == 'K') n = new JS.BinOp('*', n, new JS.Number('1000'));
+				else if(c == 'M') n = new JS.BinOp('*', n, new JS.Number('1000000'));
+				else if(c == 'B') n = new JS.BinOp('*', n, new JS.Number('1000000000'));
+				else if(c == 'P') n = new JS.BinOp('*', n, new JS.Name('Math.PI'));
+				else if(c == 'V') n = new JS.FnCall('Math.sqrt', [n]);
+				else if(c == 'N') n = new JS.BinOp('*', n, new JS.UnOp('-', new JS.Number('1')));
+				else if(c == 'S') addLib('_sq'), n = new JS.FnCall('_sq', [n]);
+				else if(c == 'A') n = new JS.BinOp('/', n, new JS.Number('2'));
+				else if(c == 'O') n = new JS.BinOp('*', n, new JS.Number('2'));
+				else if(c == 'I') n = new JS.BinOp('+', n, new JS.Number('1'));
+				else if(c == 'D') n = new JS.BinOp('-', n, new JS.Number('1'));
+				else if(c == 'R') n = new JS.FnCall('Math.round', [n]);
+				else if(c == 'C') n = new JS.FnCall('Math.ceiling', [n]);
+				else if(c == 'F') n = new JS.FnCall('Math.floor', [n]);
+				else throw 'Unknown number modifier: '+c;
+			}
+			return n;
+		}).reduce(function(a, b, i) {
+			var sep = seps[i-1];
+			if(sep == 'p') return new JS.FnCall('Math.pow', [a, b]);
+			if(sep == 'rp') return new JS.FnCall('Math.pow', [b, a]);
+			if(sep == 'e') return new JS.BinOp('*', a, new JS.FnCall('Math.pow', [10, b]));
+			if(sep == 're') return new JS.BinOp('*', b, new JS.FnCall('Math.pow', [10, a]));
+			if(sep == 'd') return new JS.BinOp('/', a, b);
+			if(sep == 'rd') return new JS.BinOp('/', b, a);
+			if(sep == 'a') return new JS.BinOp('+', a, b);
+			if(sep == 'm') return new JS.BinOp('*', a, b);
+			if(sep == 's') return new JS.BinOp('-', a, b);
+			if(sep == 'rs') return new JS.BinOp('-', b, a);
+			if(sep == 'c') return compileMathFn(b, a);
+		});
+		if(init) return t;
+		return new JS.ExprFn('', [new JS.Name('x'), new JS.Name('y'), new JS.Name('z')], t);
 	};
 	JS.Number = function(n) {this.val = (''+n) || '0'};
 	JS.Number.prototype.toString = function() {return ''+this.val};
@@ -487,16 +537,6 @@ var Wortel = (function() {
 		return '('+this.o.compile() + ').' + this.p.compile();
 	};
 
-/*
-function _rangef(b, f, w) {
-	var r = Array.isArray(b)? b: [b], l = -f.length, i = r.length-1;
-	while(w(r[r.length-1], i)) {
-		r.push(f.apply(this, r.slice(l)));
-		i += 1;
-	}
-	return r;
-}
-*/
 	// Lib
 	var Lib = {
 		'_rangef': (function() {
@@ -546,6 +586,7 @@ function _rangef(b, f, w) {
 			]),
 			new JS.Prefix('return ', new JS.Name('r'))
 		], true),
+		'_sq': new JS.Fn('_sq', [new JS.Name('x')], [new JS.Prefix('return ', new JS.BinOp('*', new JS.Name('x'), new JS.Name('x')))], true),
 	};
 	function addLibTo(obj) {
 		for(var k in Lib) obj[k] = eval('('+Lib[k].compile()+')');
@@ -701,7 +742,7 @@ function _rangef(b, f, w) {
 		},
 	
 		// Wortel
-		'~': function() {return new JS.Empty()},
+		'~': function(n) {return compileMathFn(n.val)},
 		// unary
 		'^': function(bl) {
 			if(bl instanceof JS.Block) {
