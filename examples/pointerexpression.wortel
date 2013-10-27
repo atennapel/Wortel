@@ -1,0 +1,12 @@
+; Pointer expression (like Ursala, but much less powerful)
+; rotate left
+~TjH
+; rotate right
+~LoI
+; remove second
+~HoTT
+
+; applying
+!~TjH [1 2 3] ; -> [2 3 1]
+; map
+!*~H [[1 2 3][4 5 6][7 8 9]] ; -> [1 4 7]

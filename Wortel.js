@@ -275,7 +275,7 @@ var Wortel = (function() {
 			while(s.length > 0) {
 				var c = s.shift(), na = +c;
 				if(!isNaN(na)) n = new JS.Number(''+na);
-				// ABCDEFGIJKMNOPQRUV
+				// ABCDEFGJKMNOPQRUV
 				else if(c == 'X') n = init || new JS.Name('x');
 				else if(c == 'Y') n = new JS.Name('y');
 				else if(c == 'Z') n = new JS.Name('z');
@@ -284,6 +284,7 @@ var Wortel = (function() {
 				else if(c == 'H')	n = new JS.Index(n, new JS.Number('0'));
 				else if(c == 'T') n = new JS.MethodCall(n, 'slice', [new JS.Number('1')]);
 				else if(c == 'L') n = new JS.Index(new JS.MethodCall(n, 'slice', [new JS.UnOp('-', new JS.Number('1'))]), new JS.Number('0'));
+				else if(c == 'I') n = new JS.MethodCall(n, 'slice', [new JS.Number('0'), new JS.UnOp('-', new JS.Number('1'))]);
 				else throw 'Unknown pointer modifier: '+c;
 			}
 			return n;
@@ -731,6 +732,7 @@ var Wortel = (function() {
 		'#': function(n) {return new JS.Prop(n, new JS.Name('length'))},
 		'@head': function(n) {return new JS.Index(n, new JS.Number('0'))},
 		'@tail': function(n) {return new JS.MethodCall(n, 'slice', [new JS.Number('1')])},
+		'@init': function(n) {return new JS.MethodCall(n, 'slice', [new JS.Number('0'), new JS.UnOp('-', new JS.Number('1'))])},
 		'@last': function(n) {return new JS.Index(new JS.MethodCall(n, 'slice', [new JS.UnOp('-', new JS.Number('1'))]), new JS.Number('0'))},
 
 		'@til': function(n) {
