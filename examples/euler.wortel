@@ -7,3 +7,10 @@
 	sq &n*n n
 	l @to 100
 } - !sq !/^+ l !/^+ !*sq l
+; Problem 14
+~! @to 1MD &l
+	!!~iYH l @fold &[a b i]?{
+		> a.1 b 	a
+		[i b]
+	} [1N 0] !*
+	&x #@rangef x &n?{%%n 2 /n 2 +*n 3 1} \~>1 l
