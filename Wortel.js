@@ -157,11 +157,7 @@ var Wortel = (function() {
 
 	function compile(s, sub) {return toJS(parse(s), sub)};
 
-	// Expr
-	function toString(x) {return x.toString()};
-	function mCompile(x) {return x.compile()};
-	var JS = {};
-	// Number
+	// MathFn and Pointer Expr
 	function compileNumber(str) {
 		var str = str.replace(/\$|\_/g, '');
 		if(/^(0x[0-9af]+|0[0-7]+)$/i.test(str)) return ''+str;
@@ -203,32 +199,33 @@ var Wortel = (function() {
 			return n;
 		}).reduce(function(a, b, i) {
 			var sep = seps[i-1];
+			if(sep[0] == 'r') {
+				sep = sep.slice(1);
+				var c = a; a = b; b = c;
+			}
 			if(sep == 'p') return Math.pow(a, b);
-			if(sep == 'rp') return Math.pow(b, a);
 			if(sep == 'e') return a*Math.pow(10, b);
-			if(sep == 're') return b*Math.pow(10, a);
 			if(sep == 'd') return a/b;
-			if(sep == 'rd') return b/a;
 			if(sep == 'a') return a+b;
 			if(sep == 'm') return a*b;
 			if(sep == 's') return a-b;
-			if(sep == 'rs') return b-a;
 			if(sep == 'c') return compileNumber(a + b);
 		});
 		return fn? '(function(){return '+t+'})': ''+t;
 	};
 	function compileMathFn(val, init) {
-		var str = val.replace(/\$|\_/g, '');
+		var val = val.replace(/\$|\_/g, '');
 		var seps = val.match(/[a-z]+/g);
-		var t = val.match(/[0-9\.]+[A-Z]*|[A-Z]+/g).map(function(x) {
-			if(/[a-w]/i.test(x[0]) && !init) return x;
+		var t = val.match(/[0-9\.]+[A-Z]*|[A-Z]+/g).map(function(x, i) {
+			if(/[A-W]/.test(x[0]) && seps && seps[i-1] == 'c') return x;
 			
-			var n = init || new JS.Number('0');
+			var n = init || new JS.Name('x');
 			var s = x.match(/[0-9]+\.[0-9]+|[0-9]+|[A-Z]/g);
 			while(s.length > 0) {
 				var c = s.shift(), na = +c;
 				if(!isNaN(na)) n = new JS.Number(''+na);
-				else if(c == 'X') n = new JS.Name('x');
+				// EGJKLPQRUVW
+				else if(c == 'X') n = init || new JS.Name('x');
 				else if(c == 'Y') n = new JS.Name('y');
 				else if(c == 'Z') n = new JS.Name('z');
 				else if(c == 'T') n = new JS.BinOp('*', n, new JS.Number('10'));
@@ -252,21 +249,63 @@ var Wortel = (function() {
 			return n;
 		}).reduce(function(a, b, i) {
 			var sep = seps[i-1];
+			if(sep[0] == 'r') {
+				sep = sep.slice(1);
+				var c = a; a = b; b = c;
+			}
 			if(sep == 'p') return new JS.FnCall('Math.pow', [a, b]);
-			if(sep == 'rp') return new JS.FnCall('Math.pow', [b, a]);
 			if(sep == 'e') return new JS.BinOp('*', a, new JS.FnCall('Math.pow', [10, b]));
-			if(sep == 're') return new JS.BinOp('*', b, new JS.FnCall('Math.pow', [10, a]));
 			if(sep == 'd') return new JS.BinOp('/', a, b);
-			if(sep == 'rd') return new JS.BinOp('/', b, a);
 			if(sep == 'a') return new JS.BinOp('+', a, b);
 			if(sep == 'm') return new JS.BinOp('*', a, b);
 			if(sep == 's') return new JS.BinOp('-', a, b);
-			if(sep == 'rs') return new JS.BinOp('-', b, a);
 			if(sep == 'c') return compileMathFn(b, a);
 		});
 		if(init) return t;
 		return new JS.ExprFn('', [new JS.Name('x'), new JS.Name('y'), new JS.Name('z')], t);
 	};
+	function compilePointerExpr(val, init) {
+		var val = val.replace(/\$|\_/g, '');
+		var seps = val.match(/[a-z]+/g);
+		var t = val.match(/[0-9\.]+[A-Z]*|[A-Z]+/g).map(function(x, i) {
+			if(/[A-W]/.test(x[0]) && seps && seps[i-1] == 'c') return x;
+			
+			var n = init || new JS.Name('x');
+			var s = x.match(/[0-9]+\.[0-9]+|[0-9]+|[A-Z]/g);
+			while(s.length > 0) {
+				var c = s.shift(), na = +c;
+				if(!isNaN(na)) n = new JS.Number(''+na);
+				// ABCDEFGIJKMNOPQRUV
+				else if(c == 'X') n = init || new JS.Name('x');
+				else if(c == 'Y') n = new JS.Name('y');
+				else if(c == 'Z') n = new JS.Name('z');
+				else if(c == 'W') n = new JS.Array([n]);
+				else if(c == 'S') n = new JS.Prop(n, new JS.Name('length'));
+				else if(c == 'H')	n = new JS.Index(n, new JS.Number('0'));
+				else if(c == 'T') n = new JS.MethodCall(n, 'slice', [new JS.Number('1')]);
+				else if(c == 'L') n = new JS.Index(new JS.MethodCall(n, 'slice', [new JS.UnOp('-', new JS.Number('1'))]), new JS.Number('0'));
+				else throw 'Unknown pointer modifier: '+c;
+			}
+			return n;
+		}).reduce(function(a, b, i) {
+			var sep = seps[i-1];
+			if(sep[0] == 'r') {
+				sep = sep.slice(1);
+				var c = a; a = b; b = c;
+			}
+			if(sep == 'j') return new JS.MethodCall(a, 'concat', [b]);
+			if(sep == 'o') return new JS.MethodCall(new JS.Array([a]), 'concat', [b]);
+			if(sep == 'c') return compilePointerExpr(b, a);
+		});
+		if(init) return t;
+		return new JS.ExprFn('', [new JS.Name('x'), new JS.Name('y'), new JS.Name('z')], t);
+	};
+
+	// Expr
+	function toString(x) {return x.toString()};
+	function mCompile(x) {return x.compile()};
+	var JS = {};
+	// Number
 	JS.Number = function(n) {this.val = (''+n) || '0'};
 	JS.Number.prototype.toString = function() {return ''+this.val};
 	JS.Number.prototype.compile = function() {return compileNumber(this.val)};
@@ -612,6 +651,7 @@ var Wortel = (function() {
 	};
 
 	function wrap(a) {return a instanceof JS.Array? a.val: [a]};
+	function all(a, f) {for(var i = 0, l = a.length; i < l; i++) if(!f(a[i])) return false; return true};
 	// Operators
 	var operators = {
 		// Math
@@ -742,8 +782,9 @@ var Wortel = (function() {
 		},
 	
 		// Wortel
-		'~': function(n) {return compileMathFn(n.val)},
 		// unary
+		'~': function(n) {return compilePointerExpr(n.val)},
+		'#~': function(n) {return compileMathFn(n.val)},
 		'^': function(bl) {
 			if(bl instanceof JS.Block) {
 				checkLib(bl.val);
@@ -756,6 +797,18 @@ var Wortel = (function() {
 			} else if(bl instanceof JS.Name) return new JS.Name('this.'+bl.val);
 			else if(bl instanceof JS.Array) return new JS.Fn('', [], wrap(bl));
 			return new JS.Empty();
+		},
+		// binary
+		'!#~': function(n, a) {
+			if(a instanceof JS.Number || a instanceof JS.Name)
+				return compileMathFn(n.val, a);
+			return new JS.FnCall(compileMathFn(n.val), [a]);
+		},
+		'!~': function(n, a) {
+			if(a instanceof JS.Number || a instanceof JS.Name /*||
+				(a instanceof JS.Array && all(a.val, function(x) {return x instanceof JS.Number || x instanceof JS.Name}))*/)
+				return compilePointerExpr(n.val, a);
+			return new JS.FnCall(compilePointerExpr(n.val), [a]);
 		},
 	};
 
