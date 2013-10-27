@@ -1,0 +1,12 @@
+; Math expressions
+#~XaYcV ; sqrt(x+y)
+#~XsYcSV ; sqrt(sq(x-y))
+#~5VIApXd5VcR ; nth fibonacci
+
+; applying
+!#~5VIApXd5VcR 10 ; 55
+@!#~XaYaZ [1 2 3] ; 3
+!!#~XaY 1 2 ; 3
+
+; mapping
+!*#~5VIApXd5VcR @to 5 ; [1 1 2 3 5]

@@ -178,6 +178,7 @@ var Wortel = (function() {
 			while(s.length > 0) {
 				var c = s.shift(), na = +c;
 				if(!isNaN(na)) n = na;
+				// EGJKLUVW
 				else if(c == 'T') n *= 10;
 				else if(c == 'H') n *= 100;
 				else if(c == 'K') n *= 1e3;
@@ -224,10 +225,13 @@ var Wortel = (function() {
 			while(s.length > 0) {
 				var c = s.shift(), na = +c;
 				if(!isNaN(na)) n = new JS.Number(''+na);
-				// EGJKLPQRUVW
+				// EGJKLUVW
 				else if(c == 'X') n = init || new JS.Name('x');
 				else if(c == 'Y') n = new JS.Name('y');
 				else if(c == 'Z') n = new JS.Name('z');
+				else if(c == 'P') n = new JS.Name('p');
+				else if(c == 'Q') n = new JS.Name('q');
+				else if(c == 'R') n = new JS.Name('r');
 				else if(c == 'T') n = new JS.BinOp('*', n, new JS.Number('10'));
 				else if(c == 'H') n = new JS.BinOp('*', n, new JS.Number('100'));
 				else if(c == 'K') n = new JS.BinOp('*', n, new JS.Number('1000'));
@@ -262,7 +266,7 @@ var Wortel = (function() {
 			if(sep == 'c') return compileMathFn(b, a);
 		});
 		if(init) return t;
-		return new JS.ExprFn('', [new JS.Name('x'), new JS.Name('y'), new JS.Name('z')], t);
+		return new JS.ExprFn('', [new JS.Name('x'), new JS.Name('y'), new JS.Name('z'), new JS.Name('p'), new JS.Name('q'), new JS.Name('r')], t);
 	};
 	function compilePointerExpr(val, init) {
 		var val = val.replace(/\$|\_/g, '');
@@ -275,10 +279,13 @@ var Wortel = (function() {
 			while(s.length > 0) {
 				var c = s.shift(), na = +c;
 				if(!isNaN(na)) n = new JS.Number(''+na);
-				// ABCDEFGJKMNOPQRUV
+				// ABCDEFGJKMNOUV
 				else if(c == 'X') n = init || new JS.Name('x');
 				else if(c == 'Y') n = new JS.Name('y');
 				else if(c == 'Z') n = new JS.Name('z');
+				else if(c == 'P') n = new JS.Name('p');
+				else if(c == 'Q') n = new JS.Name('q');
+				else if(c == 'R') n = new JS.Name('r');
 				else if(c == 'W') n = new JS.Array([n]);
 				else if(c == 'S') n = new JS.Prop(n, new JS.Name('length'));
 				else if(c == 'H')	n = new JS.Index(n, new JS.Number('0'));
@@ -299,7 +306,7 @@ var Wortel = (function() {
 			if(sep == 'c') return compilePointerExpr(b, a);
 		});
 		if(init) return t;
-		return new JS.ExprFn('', [new JS.Name('x'), new JS.Name('y'), new JS.Name('z')], t);
+		return new JS.ExprFn('', [new JS.Name('x'), new JS.Name('y'), new JS.Name('z'), new JS.Name('p'), new JS.Name('q'), new JS.Name('r')], t);
 	};
 
 	// Expr
