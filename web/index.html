@@ -1,0 +1,26 @@
+<html>
+	<head>
+		<title>Wortel</title>
+	</head>
+	<body>
+		<input id='in'></input><button id='b'>run</button>
+		<pre id='out'>
+		</pre>
+		<script src='Wortel.js'></script>
+		<script id='scr'>
+			@var {
+				inp !document.getElementById 'in'
+				outp !document.getElementById 'out'
+				b !document.getElementById 'b'
+				s ''
+			}
+			:b.onclick^[
+				@: {
+					s +s ~+ '\n' !eval !Wortel.compile inp.value
+					outp.innerHTML s
+				}
+			]
+		</script>
+		<script>eval(Wortel.compile(document.getElementById('scr').innerHTML))</script>
+	</body>
+</html>
