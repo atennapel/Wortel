@@ -178,7 +178,7 @@ var Wortel = (function() {
 			while(s.length > 0) {
 				var c = s.shift(), na = +c;
 				if(!isNaN(na)) n = na;
-				// EGJKLRUVW
+				// EGJKLUVW
 				else if(c == 'T') n *= 10;
 				else if(c == 'H') n *= 100;
 				else if(c == 'K') n *= 1e3;
@@ -222,14 +222,14 @@ var Wortel = (function() {
 		if(/[a-z]/.test(val[val.length-1])) val = val+'X';
 		var seps = val.match(/[a-z]+/g);
 		var t = val.match(/[0-9\.]+[A-Z]*|[A-Z]+/g).map(function(x, i) {
-			if(/[A-Z]/.test(x[0]) && seps && seps[i-1] == 'c') return x;
+			if(/[A-Z]/.test(x[0]) && seps && (seps[i-1] == 'c')) return x;
 			
 			var n = init || new JS.Name('x');
 			var s = x.match(/[0-9]+\.[0-9]+|[0-9]+|[A-Z]/g);
 			while(s.length > 0) {
 				var c = s.shift(), na = +c;
 				if(!isNaN(na)) n = new JS.Number(''+na);
-				// EGJKLRUVW
+				// EGLUVW
 				else if(c == 'X') n = init || new JS.Name('x');
 				else if(c == 'Y') n = new JS.Name('y');
 				else if(c == 'Z') n = new JS.Name('z');
@@ -280,7 +280,7 @@ var Wortel = (function() {
 		if(/[a-z]/.test(val[val.length-1])) val = val+'X';
 		var seps = val.match(/\$[0-9A-Za-z\_]+\$|[0-9\.]+[A-Z]*|[A-Z]+|[a-z]+/g).map(function(x) {return /[a-z]+/.test(x)? x: null});
 		var t = val.match(/\$[0-9A-Za-z\_]+\$|[0-9\.]+[A-Z]*|[A-Z]+/g).map(function(x, i) {
-			if(/[A-Z]/.test(x[0]) && seps && (seps[i-1] == 'c')) return x;
+			if(/[A-Z]/.test(x[0]) && seps && (seps[i] == 'c')) return x;
 
 			if(x[0] == '$') {
 				var expr = x.slice(1, -1);
@@ -292,7 +292,7 @@ var Wortel = (function() {
 			while(s.length > 0) {
 				var c = s.shift(), na = +c;
 				if(!isNaN(na)) n = new JS.Number(''+na);
-				// ABK
+				// GK
 				else if(c == 'X') n = init || new JS.Name('x');
 				else if(c == 'Y') n = new JS.Name('y');
 				else if(c == 'Z') n = new JS.Name('z');
@@ -303,8 +303,8 @@ var Wortel = (function() {
 				else if(c == 'N') n = new JS.BinOp('*', n, new JS.UnOp('-', new JS.Number('1')));
 				else if(c == 'D') n = new JS.BinOp('-', n, new JS.Number('1'));
 				else if(c == 'E') n = new JS.BinOp('+', n, new JS.Number('1'));
-				else if(c == 'G') addLib('_range'), n = new JS.FnCall('_range', [new JS.Array([new JS.Number('0'), new JS.BinOp('-', n, new JS.Number('1'))])]);
-				else if(c == 'J') addLib('_range'), n = new JS.FnCall('_range', [new JS.Array([new JS.Number('1'), n])]);
+				else if(c == 'A') addLib('_range'), n = new JS.FnCall('_range', [new JS.Array([new JS.Number('0'), new JS.BinOp('-', n, new JS.Number('1'))])]);
+				else if(c == 'B') addLib('_range'), n = new JS.FnCall('_range', [new JS.Array([new JS.Number('1'), n])]);
 				else if(c == 'C') n = new JS.Prop(n, new JS.Name('length'));
 				else if(c == 'H')	n = new JS.Index(n, new JS.Number('0'));
 				else if(c == 'T') n = new JS.MethodCall(n, 'slice', [new JS.Number('1')]);
