@@ -314,7 +314,7 @@ var Wortel = (function() {
 				else if(c == 'S') addLib('_sort'), n = new JS.FnCall('_sort', [n]);
 				else if(c == 'O') addLib('_sortl'), n = new JS.FnCall('_sortl', [n]);
 				else if(c == 'U') addLib('_uniq'), n = new JS.FnCall('_uniq', [n]);
-				else if(c == 'F') addLib('_flatten'), n = new JS.FnCall('_flatten', [n]);
+				else if(c == 'F') addLib('_flat'), n = new JS.FnCall('_flat', [n]);
 				else if(c == 'I') n = new JS.MethodCall(n, 'slice', [new JS.Number('0'), new JS.UnOp('-', new JS.Number('1'))]);
 				else throw 'Unknown pointer modifier: '+c;
 			}
@@ -327,7 +327,7 @@ var Wortel = (function() {
 			}
 			if(sep == 'j') return new JS.MethodCall(a, 'concat', [b]);
 			if(sep == 'i') return new JS.Index(a, b);
-			if(sep == 'p') {addLib('_partition'); return new JS.FnCall('_partition', [b, a])};
+			if(sep == 'p') {addLib('_part'); return new JS.FnCall('_part', [b, a])};
 			if(sep == 'z') {addLib('_zip'); return new JS.FnCall('_zip', [a, b])};
 			if(sep == 'a') {addLib('_cart'); return new JS.FnCall('_cart', [a, b])};
 			if(sep == 'o') return new JS.MethodCall(new JS.Array([a]), 'concat', [b]);
@@ -680,7 +680,7 @@ var Wortel = (function() {
 		'_wrap': new JS.Fn('_wrap', [new JS.Name('x')], [new JS.Prefix('return ', new JS.Ternary([
 			new JS.FnCall('Array.isArray', [new JS.Name('x')]), new JS.Name('x'), new JS.Array([new JS.Name('x')])
 		]))], true),
-		'_flatten': (function() {
+		'_flat': (function() {
 			var a = new JS.Name('a'),
 					r = new JS.Name('r'),
 					i = new JS.Name('i'),
@@ -688,7 +688,7 @@ var Wortel = (function() {
 					l = new JS.Name('l'),
 					k = new JS.Name('k'),
 					len = new JS.Name('length');
-			return new JS.Fn('_flatten', [a], [
+			return new JS.Fn('_flat', [a], [
 				new JS.Prefix('var ', new JS.Assigment([r, new JS.Array([])])),
 				new JS.For(new JS.Prefix('var ', new JS.Assigment([i, new JS.Number('0'), l, new JS.Prop(a, len)])), new JS.BinOp('<', i, l),
 					new JS.Suffix('++', i), new JS.Array([
@@ -761,12 +761,12 @@ var Wortel = (function() {
 				new JS.Prefix('return ', r)
 			], true);
 		})(),
-		'_partition': (function() {
+		'_part': (function() {
 			var a = new JS.Name('a'),
 					n = new JS.Name('n'),
 					r = new JS.Name('r'),
 					i = new JS.Name('i');
-			return new JS.Fn('_partition', [n, a], [
+			return new JS.Fn('_part', [n, a], [
 				new JS.Prefix('var ', new JS.Assigment([
 					r, new JS.Array([]),
 					i, new JS.BinOp('|', new JS.Number('0'), new JS.BinOp('/', new JS.Prop(a, new JS.Name('length')), n))
@@ -864,11 +864,11 @@ var Wortel = (function() {
 		'@rev': ['_rev'],
 		'@sort': ['_sort'],
 		'@sortl': ['_sortl'],
-		'@part': ['_partition'],
+		'@part': ['_part'],
 		'@zip': ['_zip'],
 		'@uniq': ['_uniq'],
 		'@cart': ['_cart'],
-		'@flat': ['_flatten'],
+		'@flat': ['_flat'],
 		'@wrap': ['_wrap'],
 		'@sum': ['_sum'],
 		'@prod': ['_prod'],
@@ -881,11 +881,11 @@ var Wortel = (function() {
 		'@rev': '_rev',
 		'@sort': '_sort',
 		'@sortl': '_sortl',
-		'@part': '_partition',
+		'@part': '_part',
 		'@zip': '_zip',
 		'@uniq': '_uniq',
 		'@cart': '_cart',
-		'@flat': '_flatten',
+		'@flat': '_flat',
 		'@wrap': '_wrap',
 		'@sum': '_sum',
 		'@prod': '_prod',
@@ -979,7 +979,7 @@ var Wortel = (function() {
 		'@sortl': function(n) {return new JS.FnCall('_sortl', [n])},
 
 		'@uniq': function(n) {return new JS.FnCall('_uniq', [n])},
-		'@flat': function(n) {return new JS.FnCall('_flatten', [n])},
+		'@flat': function(n) {return new JS.FnCall('_flat', [n])},
 		'@wrap': function(n) {return new JS.FnCall('_wrap', [n])},
 		'@sum': function(n) {return new JS.FnCall('_sum', [n])},
 		'@prod': function(n) {return new JS.FnCall('_prod', [n])},
@@ -995,7 +995,7 @@ var Wortel = (function() {
 		// binary
 		'@zip': function(a, b) {return new JS.FnCall('_zip', [a, b])},
 		'@cart': function(a, b) {return new JS.FnCall('_cart', [a, b])},
-		'@part': function(n, a) {return new JS.FnCall('_partition', [n, a])},
+		'@part': function(n, a) {return new JS.FnCall('_part', [n, a])},
 		',': function(a, b) {return new JS.MethodCall(a instanceof JS.String || a instanceof JS.Number? new JS.Array([a]): a, 'concat', [b])},
 		'!*': function(fn, a) {return new JS.MethodCall(a, 'map', [fn])},
 		'!/': function(fn, a) {return new JS.MethodCall(a, 'reduce', [fn])},
@@ -1058,12 +1058,12 @@ var Wortel = (function() {
 				return compileMathFn(n.val, a);
 			return new JS.FnCall(compileMathFn(n.val), [a]);
 		},
-		'!~': function(n, a) {
-			if(a instanceof JS.Number || a instanceof JS.Name /*||
-				(a instanceof JS.Array && all(a.val, function(x) {return x instanceof JS.Number || x instanceof JS.Name}))*/)
+		/*'!~': function(n, a) {
+			if(a instanceof JS.Number || a instanceof JS.Name ||
+				(a instanceof JS.Array && all(a.val, function(x) {return x instanceof JS.Number || x instanceof JS.Name})))
 				return compilePointerExpr(n.val, a);
 			return new JS.FnCall(compilePointerExpr(n.val), [a]);
-		},
+		},*/
 	};
 
 	return {
