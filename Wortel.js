@@ -1,7 +1,7 @@
 /*
 	Wortel
 	@author: Albert ten Napel
-	@version: 0.6
+	@version: 0.65
 
 	TODO:
 		add operators
@@ -11,7 +11,7 @@
 */
 
 var Wortel = (function() {
-	var version = 0.6;
+	var version = 0.65;
 	var _randN = 0;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
@@ -216,7 +216,7 @@ var Wortel = (function() {
 		});
 		return fn? '(function(){return '+t+'})': ''+t;
 	};
-	function compileMathFn(val, init) {
+	function compileMathFn(val, init, l) {
 		var val = val.replace(/\$|\_/g, '');
 		if(/[a-z]/.test(val[0])) val = 'X'+val;
 		if(/[a-z]/.test(val[val.length-1])) val = val+'X';
@@ -270,24 +270,29 @@ var Wortel = (function() {
 			if(sep == 'l') return new JS.FnCall('Math.min', [a, b]);
 			if(sep == 'c') return compileMathFn(b, a);
 		});
-		if(init) return t;
+		if(init || l) return t;
 		return new JS.ExprFn('', [new JS.Name('x'), new JS.Name('y'), new JS.Name('z'), new JS.Name('p'), new JS.Name('q')], t);
 	};
 	function compilePointerExpr(val, init) {
-		var val = val.replace(/\$|\_/g, '');
+		var val = val.replace(/\_/g, '');
 		if(!val) val = 'X';
 		if(/[a-z]/.test(val[0])) val = 'X'+val;
 		if(/[a-z]/.test(val[val.length-1])) val = val+'X';
-		var seps = val.match(/[a-z]+/g);
-		var t = val.match(/[0-9\.]+[A-Z]*|[A-Z]+/g).map(function(x, i) {
-			if(/[A-Z]/.test(x[0]) && seps && (seps[i-1] == 'c' || seps[i-1] == 'm' || seps[i-1] == 'r' || seps[i-1] == 'f')) return x;
-			
+		var seps = val.match(/\$[0-9A-Za-z\_]+\$|[0-9\.]+[A-Z]*|[A-Z]+|[a-z]+/g).map(function(x) {return /[a-z]+/.test(x)? x: null});
+		var t = val.match(/\$[0-9A-Za-z\_]+\$|[0-9\.]+[A-Z]*|[A-Z]+/g).map(function(x, i) {
+			if(/[A-Z]/.test(x[0]) && seps && (seps[i-1] == 'c')) return x;
+
+			if(x[0] == '$') {
+				var expr = x.slice(1, -1);
+				return compileMathFn(expr, null, true);
+			}
+
 			var n = init || new JS.Name('x');
 			var s = x.match(/[0-9]+\.[0-9]+|[0-9]+|[A-Z]/g);
 			while(s.length > 0) {
 				var c = s.shift(), na = +c;
 				if(!isNaN(na)) n = new JS.Number(''+na);
-				// ABKM
+				// ABK
 				else if(c == 'X') n = init || new JS.Name('x');
 				else if(c == 'Y') n = new JS.Name('y');
 				else if(c == 'Z') n = new JS.Name('z');
@@ -314,7 +319,7 @@ var Wortel = (function() {
 			}
 			return n;
 		}).reduce(function(a, b, i) {
-			var sep = seps[i-1];
+			var sep = seps[i] || 'n';
 			if(sep[0] == 'r') {
 				sep = sep.slice(1);
 				var c = a; a = b; b = c;
@@ -328,9 +333,23 @@ var Wortel = (function() {
 			if(sep == 's') return new JS.MethodCall(a, 'slice', [b]);
 			if(sep == 't') return new JS.MethodCall(a, 'slice', [new JS.Number('0'), b]);
 			if(sep == 'c') return compilePointerExpr(b, a);
-			if(sep == 'm') return new JS.MethodCall(a, 'map', [compilePointerExpr(b)]);
-			if(sep == 'r') return new JS.MethodCall(a, 'reduce', [compilePointerExpr(b)]);
-			if(sep == 'f') return new JS.MethodCall(a, 'filter', [compilePointerExpr(b)]);
+			if(sep == 'n') return new JS.FnCall(new JS.ExprFn('',
+				[new JS.Name('x'), new JS.Name('y'), new JS.Name('z'), new JS.Name('p'), new JS.Name('q')], b), [a]);
+			if(sep == 'b') return new JS.FnCall(new JS.ExprFn('',
+				[new JS.Name('x'), new JS.Name('y'), new JS.Name('z'), new JS.Name('p'), new JS.Name('q')], b),
+				[new JS.Index(a, new JS.Number('0')),
+				 new JS.Index(a, new JS.Number('1')),
+				 new JS.Index(a, new JS.Number('2')),
+				 new JS.Index(a, new JS.Number('3')),
+				 new JS.Index(a, new JS.Number('4'))]);
+			if(sep == 'm') return new JS.MethodCall(a, 'map',
+				[new JS.ExprFn('', [new JS.Name('x')], b)]);
+			if(sep == 'r') return new JS.MethodCall(a, 'reduce',
+				[new JS.ExprFn('', [new JS.Name('x'), new JS.Name('y')], b)]);
+			if(sep == 'f') return new JS.MethodCall(a, 'filter',
+				[new JS.ExprFn('', [new JS.Name('x')], b)]);
+			if(sep == 'd') return new JS.MethodCall(a, 'filter',
+				[new JS.ExprFn('', [new JS.Name('x')], new JS.BinOp('!==', new JS.Name('x'), b))]);
 		});
 		if(init) return t;
 		return new JS.ExprFn('', [new JS.Name('x'), new JS.Name('y'), new JS.Name('z'), new JS.Name('p'), new JS.Name('q')], t);
