@@ -26,7 +26,7 @@ y rotl top3
 z rotr top3
 A bin-and
 B a*1e9
-C
+C over
 D pop
 E e
 F

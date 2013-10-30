@@ -291,7 +291,7 @@ var Wortel = (function() {
 			else if(c == 'z') t = [stack.pop(), stack.pop(), stack.pop()], stack.push(t[2], t[0], t[1]);
 			else if(c == 'A') t = stack.pop(), stack.push(new JS.BinOp('&', stack.pop(), t));
 			else if(c == 'B') stack.push(new JS.BinOp('*', stack.pop(), new JS.Number('1000000000')));
-			else if(c == 'C') ;
+			else if(c == 'C') stack.push(stack[stack.length-2]);
 			else if(c == 'D') stack.pop();
 			else if(c == 'E') stack.push(new JS.Name('Math.E'));
 			else if(c == 'F') ;
