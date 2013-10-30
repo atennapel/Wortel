@@ -29,7 +29,7 @@ B a*1e9
 C over
 D pop
 E e
-F
+F factorial
 G max
 H a*1e2
 I abs

@@ -1,7 +1,7 @@
 /*
 	Wortel
 	@author: Albert ten Napel
-	@version: 0.66
+	@version: 0.66.1
 
 	TODO:
 		for loop
@@ -14,7 +14,7 @@
 */
 
 var Wortel = (function() {
-	var version = '0.66';
+	var version = '0.66.1';
 	var _randN = 0;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
@@ -294,7 +294,7 @@ var Wortel = (function() {
 			else if(c == 'C') stack.push(stack[stack.length-2]);
 			else if(c == 'D') stack.pop();
 			else if(c == 'E') stack.push(new JS.Name('Math.E'));
-			else if(c == 'F') ;
+			else if(c == 'F') addLib('_fac'), stack.push(new JS.FnCall('_fac', [stack.pop()]));
 			else if(c == 'G') stack.push(new JS.FnCall('Math.max', [stack.pop(), stack.pop()]));
 			else if(c == 'H') stack.push(new JS.BinOp('*', stack.pop(), new JS.Number('100')));
 			else if(c == 'I') stack.push(new JS.FnCall('Math.abs', [stack.pop()]));
@@ -612,6 +612,18 @@ var Wortel = (function() {
 
 	// Lib
 	var Lib = {
+		'_fac': (function() {
+			var n = new JS.Name('n'),
+					i = new JS.Name('i'),
+					r = new JS.Name('r');
+			return new JS.Fn('_fac', [n], [
+				new JS.Prefix('var ', new JS.Assigment([r, new JS.Number('1')])),
+				new JS.For(new JS.Prefix('var ', new JS.Assigment([i, new JS.Number('1')])), new JS.BinOp('<=', i, n), new JS.Suffix('++', i), new JS.Array([
+					new JS.BinOp('*=', r, i)
+				])),
+				new JS.Prefix('return ', r)
+			], true);
+		})(),
 		'_table': (function() {
 			var f = new JS.Name('f'),
 					a = new JS.Name('a'),
@@ -978,6 +990,7 @@ var Wortel = (function() {
 		'@mapm': ['_mapm'],
 		'@cartm': ['_cartm'],
 		'@table': ['_table'],
+		'@fac': ['_fac'],
 	};
 	var opToLib = {
 		'@%': '_mod',
@@ -1001,6 +1014,7 @@ var Wortel = (function() {
 		'@mapm': '_mapm',
 		'@cartm': '_cartm',
 		'@table': '_table',
+		'@fac': '_fac',
 	};
 
 	function wrap(a) {return a instanceof JS.Array? a.val: [a]};
@@ -1014,6 +1028,7 @@ var Wortel = (function() {
 		'@sq': function(x) {return new JS.FnCall('_sq', [x])},
 		'@sqrt': function(x) {return new JS.FnCall('Math.sqrt', [x])},
 		'@abs': function(x) {return new JS.FnCall('Math.abs', [x])},
+		'@fac': function(x) {return new JS.FnCall('_fac', [x])},
 		// binary
 		'+': function(x, y) {return new JS.BinOp('+', x, y)},
 		'-': function(x, y) {return new JS.BinOp('-', x, y)},
