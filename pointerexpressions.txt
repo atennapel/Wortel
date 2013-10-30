@@ -1,0 +1,52 @@
+a
+b
+c
+d dup
+e
+f
+g
+h
+i
+j
+k
+l
+m
+n
+o
+p
+q
+r
+s no-op
+t
+u
+v
+w
+x
+y rotl top3
+z rotr top3
+A
+B
+C
+D pop
+E
+F
+G
+H
+I
+J
+K
+L
+M
+N
+O
+P
+Q
+R
+S swap
+T
+U
+V
+W
+X var x
+Y var y
+Z var z 

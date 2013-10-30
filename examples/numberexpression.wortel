@@ -1,12 +1,12 @@
 ; Math expressions
-#~XaYcV ; sqrt(x+y)
-#~XsYcSV ; sqrt(sq(x-y))
-#~5VIApXd5VcR ; nth fibonacci
+#~av ; sqrt(x+y)
+#~bVv ; sqrt(sq(x-y))
+#~5vihSp5vnr ; nth fibonacci
 
 ; applying
-!#~5VIApXd5VcR 10 ; 55
-@!#~XaYaZ [1 2 3] ; 3
-!!#~XaY 1 2 ; 3
+!#~5vihSp5vnr 10 ; 55
+@!#~aa [1 2 3] ; 3
+!!#~a 1 2 ; 3
 
 ; mapping
-!*#~5VIApXd5VcR @to 5 ; [1 1 2 3 5]
+!*#~5vihSp5vnr @to 5 ; [1 1 2 3 5]

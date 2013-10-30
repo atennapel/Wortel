@@ -1,0 +1,52 @@
+a add
+b sub
+c ceiling
+d dup
+e a*pow(10, b)
+f floor
+g greater
+h half
+i inc
+j dec
+k
+l lesser
+m mult
+n div
+o double
+p pow
+q eq
+r round
+s no-op
+t greater-or-eq
+u less-or-eq
+v sqrt
+w
+x bin-xor
+y rotl top3
+z rotr top3
+A bin-and
+B a*1e9
+C
+D pop
+E e
+F
+G max
+H a*1e2
+I abs
+J
+K a*1e3
+L min
+M a*1e6
+N neg
+O bin-or
+P pi
+Q strict-eq
+R rem
+S swap
+T a*10
+U
+V sq
+W
+X var x
+Y var y
+Z var z
