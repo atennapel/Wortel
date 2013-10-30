@@ -612,6 +612,31 @@ var Wortel = (function() {
 
 	// Lib
 	var Lib = {
+		'_table': (function() {
+			var f = new JS.Name('f'),
+					a = new JS.Name('a'),
+					b = new JS.Name('b'),
+					i = new JS.Name('i'),
+					j = new JS.Name('j'),
+					la = new JS.Name('la'),
+					lb = new JS.Name('lb'),
+					r = new JS.Name('r'),
+					x = new JS.Name('x'),
+					len = new JS.Name('length');
+			return new JS.Fn('_table', [f, a, b], [
+				new JS.Prefix('var ', new JS.Assigment([
+					la, new JS.Prop(a, len),
+					lb, new JS.Prop(b, len),
+					r, new JS.Array([]),
+				])),
+				new JS.For(new JS.Prefix('var ', new JS.Assigment([i, new JS.Number('0')])), new JS.BinOp('<', i, la), new JS.Suffix('++', i), new JS.Array([
+					new JS.Prefix('var ', new JS.Assigment([x, new JS.Array([])])),
+					new JS.For(new JS.Prefix('var ', new JS.Assigment([j, new JS.Number('0')])), new JS.BinOp('<', j, lb), new JS.Suffix('++', j), new JS.Array([
+						new JS.FnCall('x.push', [new JS.FnCall('f', [new JS.Index(a, i), new JS.Index(b, j)])])])),
+					new JS.FnCall('r.push', [x])])),
+				new JS.Prefix('return ', r)
+			], true);
+		})(),
 		'_cartm': (function() {
 			var m = new JS.Name('m'),
 					l = new JS.Name('l'),
@@ -952,6 +977,7 @@ var Wortel = (function() {
 		'@zipm': ['_zipm'],
 		'@mapm': ['_mapm'],
 		'@cartm': ['_cartm'],
+		'@table': ['_table'],
 	};
 	var opToLib = {
 		'@%': '_mod',
@@ -974,6 +1000,7 @@ var Wortel = (function() {
 		'@zipm': '_zipm',
 		'@mapm': '_mapm',
 		'@cartm': '_cartm',
+		'@table': '_table',
 	};
 
 	function wrap(a) {return a instanceof JS.Array? a.val: [a]};
@@ -1110,6 +1137,7 @@ var Wortel = (function() {
 		'`': function(i, a) {return new JS.Index(a, i)},
 		// ternary
 		'@fold': function(fn, v, a) {return new JS.MethodCall(a, 'reduce', [fn, v])},
+		'@table': function(f, a, b) {return new JS.FnCall('_table', [f, a, b])},
 
 		// JS Keywords
 		// unary
