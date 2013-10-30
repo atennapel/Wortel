@@ -31,13 +31,10 @@ node Wortel input.wortel > output.js
 ; Problem 2
 !/^+ !-\~%%2 @rangef [0 1] ^+ \~<4M
 ; Problem 6
-@let {
-  sq &n*n n
-  l @to 100
-} - !sq !/^+ l !/^+ !*sq l
+@let {l @to 100} - @sq !/^+ l !/^+ !*^@sq l
 ; Problem 14
-~! @to 1MD &l
-	!!~iYH l @fold &[a b i]?{
+~! @to 1Mj &l
+	!!~ShI l @fold &[a b i]?{
 		> a.1 b 	a
 		[i b]
 	} [1N 0] !*

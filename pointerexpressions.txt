@@ -1,26 +1,26 @@
 a
 b
-c
+c count
 d dup
 e
 f
 g
-h
-i
-j
+h head
+i init
+j join
 k
-l
+l last
 m
 n
-o
+o sort
 p
 q
-r
+r rev
 s no-op
-t
-u
+t tail
+u uniq
 v
-w
+w wrap
 x
 y rotl top3
 z rotr top3
@@ -32,21 +32,21 @@ E
 F
 G
 H
-I
+I index
 J
 K
 L
 M
 N
-O
+O cons
 P
 Q
 R
 S swap
-T
+T take n
 U
 V
-W
+W wrap if not array
 X var x
 Y var y
 Z var z 
