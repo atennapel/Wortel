@@ -1,17 +1,20 @@
 /*
 	Wortel
 	@author: Albert ten Napel
-	@version: 0.65
+	@version: 0.66
 
 	TODO:
-		add operators
-		improve names
-		improve numbers
-		improve string interpolation
+		for loop
+		list comprehension
+		named fns
+		rest arguments
+		default arguments
+		RPN pointer expressions
+		macro/aliases
 */
 
 var Wortel = (function() {
-	var version = 0.65;
+	var version = '0.66';
 	var _randN = 0;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
@@ -251,12 +254,12 @@ var Wortel = (function() {
 		if(/^[0-9]*\.[0-9]+$|^[0-9]+$/.test(str)) return str;
 		return compileMathFnRPN(val).compile();
 	};
-	function compileMathFnRPN(expr, inp, fn) {
+	function compileMathFnRPN(expr, inp, fn, st) {
 		var expr = expr.replace(/\$|\_|\s/g, '');
 		var inp = inp || [], x = inp[0] || new JS.Name('x'),
 							y = inp[1] || new JS.Name('y'), z = inp[2] || new JS.Name('z');
-		var stack = inp.length > 3? [].concat(inp).reverse(): [z, y, x];
-		var a = expr.match(/[0-9]+\.[0-9]+|[0-9]+|[a-z]/gi);
+		var stack = st? inp: inp.length > 3? [].concat(inp).reverse(): [z, y, x];
+		var a = expr.match(/k[0-9]+|[0-9]+\.[0-9]+|[0-9]+|[a-zA-Z]/g);
 		for(var i = 0, l = a.length, t; i < l; i++) {
 			var c = a[i], n = +c;
 			if(!isNaN(n)) stack.push(new JS.Number(n));
@@ -609,6 +612,118 @@ var Wortel = (function() {
 
 	// Lib
 	var Lib = {
+		'_cartm': (function() {
+			var m = new JS.Name('m'),
+					l = new JS.Name('l'),
+					max = new JS.Name('max'),
+					i = new JS.Name('i'),
+					j = new JS.Name('j'),
+					r = new JS.Name('r'),
+					a = new JS.Name('a'),
+					arr = new JS.Name('arr'),
+					len = new JS.Name('length');
+			return new JS.Fn('_cartm', [m], [
+				new JS.If([
+					new JS.BinOp('==', new JS.Number('0'), new JS.Prop(m, len)), new JS.Prefix('return ', new JS.Array([]))
+				]),
+				new JS.Prefix('var ', new JS.Assigment([
+					max, new JS.BinOp('-', new JS.Prop(m, len), new JS.Number('1')),
+					r, new JS.Array([])
+				])),
+				new JS.Fn('_helper', [arr, i], [
+					new JS.For(new JS.Prefix('var ', new JS.Assigment([
+						j, new JS.Number('0'),
+						l, new JS.Prop(new JS.Index(m, i), len)
+					])), new JS.BinOp('<', j, l), new JS.Suffix('++', j), new JS.Array([
+						new JS.Prefix('var ', new JS.Assigment([a, new JS.FnCall('arr.slice', [new JS.Number('0')])])),
+						new JS.FnCall('a.push', [new JS.Index(new JS.Index(m, i), j)]),
+						new JS.If([
+							new JS.BinOp('==', i, max), new JS.FnCall('r.push', [a]), new JS.FnCall('_helper', [a, new JS.BinOp('+', i, new JS.Number('1'))])
+						])
+					]))
+				], true),
+				new JS.FnCall('_helper', [new JS.Array([]), new JS.Number('0')]),
+				new JS.Prefix('return ', r)
+			], true);
+		})(),
+		'_mapm': (function() {
+			var m = new JS.Name('m'),
+					l = new JS.Name('l'),
+					f = new JS.Name('f'),
+					min = new JS.Name('min'),
+					i = new JS.Name('i'),
+					j = new JS.Name('j'),
+					r = new JS.Name('r'),
+					x = new JS.Name('x'),
+					y = new JS.Name('y'),
+					len = new JS.Name('length');
+			return new JS.Fn('_mapm', [f, m], [
+				new JS.If([
+					new JS.BinOp('==', new JS.Number('0'), new JS.Prop(m, len)), new JS.Prefix('return ', new JS.Array([]))
+				]),
+				new JS.Prefix('var ', new JS.Assigment([
+					l, new JS.Prop(m, len),
+					r, new JS.Array([]),
+					min, new JS.FnCall('m.reduce', [new JS.ExprFn('', [x, y], new JS.FnCall('Math.min', [x, new JS.Prop(y, len)])), new JS.Name('Infinity')])
+				])),
+				new JS.For(new JS.Prefix('var ', new JS.Assigment([i, new JS.Number('0')])), new JS.BinOp('<', i, min), new JS.Suffix('++', i), new JS.Array([
+					new JS.Prefix('var ', new JS.Assigment([x, new JS.Array([])])),
+					new JS.For(new JS.Prefix('var ', new JS.Assigment([j, new JS.Number('0')])), new JS.BinOp('<', j, l), new JS.Suffix('++', j), new JS.Array([
+						new JS.FnCall('x.push', [new JS.Index(new JS.Index(m, j), i)])])),
+					new JS.FnCall('r.push', [new JS.FnCall('f.apply', [new JS.Name('this'), x])])
+				])),
+				new JS.Prefix('return ', r)
+			], true);
+		})(),
+		'_zipm': (function() {
+			var m = new JS.Name('m'),
+					l = new JS.Name('l'),
+					min = new JS.Name('min'),
+					i = new JS.Name('i'),
+					j = new JS.Name('j'),
+					r = new JS.Name('r'),
+					x = new JS.Name('x'),
+					y = new JS.Name('y'),
+					len = new JS.Name('length');
+			return new JS.Fn('_zipm', [m], [
+				new JS.If([
+					new JS.BinOp('==', new JS.Number('0'), new JS.Prop(m, len)), new JS.Prefix('return ', new JS.Array([]))
+				]),
+				new JS.Prefix('var ', new JS.Assigment([
+					l, new JS.Prop(m, len),
+					r, new JS.Array([]),
+					min, new JS.FnCall('m.reduce', [new JS.ExprFn('', [x, y], new JS.FnCall('Math.min', [x, new JS.Prop(y, len)])), new JS.Name('Infinity')])
+				])),
+				new JS.For(new JS.Prefix('var ', new JS.Assigment([i, new JS.Number('0')])), new JS.BinOp('<', i, min), new JS.Suffix('++', i), new JS.Array([
+					new JS.Prefix('var ', new JS.Assigment([x, new JS.Array([])])),
+					new JS.For(new JS.Prefix('var ', new JS.Assigment([j, new JS.Number('0')])), new JS.BinOp('<', j, l), new JS.Suffix('++', j), new JS.Array([
+						new JS.FnCall('x.push', [new JS.Index(new JS.Index(m, j), i)])])),
+					new JS.FnCall('r.push', [x])
+				])),
+				new JS.Prefix('return ', r)
+			], true);
+		})(),
+		'_rep': (function() {
+			var n = new JS.Name('n'),
+					r = new JS.Name('r'),
+					v = new JS.Name('v'),
+					i = new JS.Name('i'),
+					a = new JS.Name('a');
+			return new JS.Fn('_rep', [n, v], [
+				new JS.Prefix('var ', new JS.Assigment([a, new JS.FnCall('Array.isArray', [v])])),
+				new JS.If([
+					new JS.BinOp('&&', a,
+						new JS.BinOp('==', new JS.Number('0'), new JS.Prop(v, new JS.Name('length')))), new JS.Prefix('return ', new JS.Array([]))
+				]),
+				new JS.For(new JS.Prefix('var ', new JS.Assigment([
+					i, new JS.Number('0'),
+					r, new JS.Array([]),
+				])), new JS.BinOp('<', i, n), new JS.Suffix('++', i), new JS.Array([new JS.FnCall('r.push', [new JS.Ternary([
+					a, new JS.Index(v, new JS.BinOp('%', i, new JS.Prop(v, new JS.Name('length')))), v
+				])])])),
+				new JS.Prefix('return ', r)
+			], true);
+		})(),
 		'_sum': (function() {
 			var a = new JS.Name('a'),
 					n = new JS.Name('n'),
@@ -832,6 +947,11 @@ var Wortel = (function() {
 		'@wrap': ['_wrap'],
 		'@sum': ['_sum'],
 		'@prod': ['_prod'],
+		'@rep': ['_rep'],
+		'@sq': ['_sq'],
+		'@zipm': ['_zipm'],
+		'@mapm': ['_mapm'],
+		'@cartm': ['_cartm'],
 	};
 	var opToLib = {
 		'@%': '_mod',
@@ -849,6 +969,11 @@ var Wortel = (function() {
 		'@wrap': '_wrap',
 		'@sum': '_sum',
 		'@prod': '_prod',
+		'@rep': '_rep',
+		'@sq': '_sq',
+		'@zipm': '_zipm',
+		'@mapm': '_mapm',
+		'@cartm': '_cartm',
 	};
 
 	function wrap(a) {return a instanceof JS.Array? a.val: [a]};
@@ -859,6 +984,9 @@ var Wortel = (function() {
 		// unary
 		'@+': function(x) {return new JS.UnOp('+', x)},
 		'@-': function(x) {return new JS.UnOp('-', x)},
+		'@sq': function(x) {return new JS.FnCall('_sq', [x])},
+		'@sqrt': function(x) {return new JS.FnCall('Math.sqrt', [x])},
+		'@abs': function(x) {return new JS.FnCall('Math.abs', [x])},
 		// binary
 		'+': function(x, y) {return new JS.BinOp('+', x, y)},
 		'-': function(x, y) {return new JS.BinOp('-', x, y)},
@@ -868,6 +996,8 @@ var Wortel = (function() {
 		'%%': function(x, y) {return new JS.BinOp('==', new JS.BinOp('%', x, y), new JS.Number(0))},
 		'@%': function(x, y) {return new JS.FnCall('_mod', [x, y])},
 		'^': function(x, y) {return new JS.FnCall('Math.pow', [x, y])},
+		'@max': function(x, y) {return new JS.FnCall('Math.max', [x, y])},
+		'@min': function(x, y) {return new JS.FnCall('Math.min', [x, y])},
 
 		// Boolean
 		// unary
@@ -954,6 +1084,8 @@ var Wortel = (function() {
 		'@wrap': function(n) {return new JS.FnCall('_wrap', [n])},
 		'@sum': function(n) {return new JS.FnCall('_sum', [n])},
 		'@prod': function(n) {return new JS.FnCall('_prod', [n])},
+		'@zipm': function(n) {return new JS.FnCall('_zipm', [n])},
+		'@cartm': function(n) {return new JS.FnCall('_cartm', [n])},
 
 		'@til': function(n) {
 			return new JS.FnCall('_range', [new JS.Array([new JS.Number('0'), new JS.BinOp('-', n, new JS.Number('1'))])]);
@@ -965,9 +1097,12 @@ var Wortel = (function() {
 		'@rangef': function(a, b, c) {return new JS.FnCall('_rangef', [a, b, c])},
 		// binary
 		'@zip': function(a, b) {return new JS.FnCall('_zip', [a, b])},
+		'@mapm': function(f, a) {return new JS.FnCall('_mapm', [f, a])},
 		'@join': function(n, a) {return new JS.MethodCall(a, 'join', [n])},
 		'@cart': function(a, b) {return new JS.FnCall('_cart', [a, b])},
 		'@part': function(n, a) {return new JS.FnCall('_part', [n, a])},
+		'@rep': function(n, v) {return new JS.FnCall('_rep', [n, v])},
+		'@each': function(fn, a) {return new JS.MethodCall(a, 'forEach', [fn])},
 		',': function(a, b) {return new JS.MethodCall(a instanceof JS.String || a instanceof JS.Number? new JS.Array([a]): a, 'concat', [b])},
 		'!*': function(fn, a) {return new JS.MethodCall(a, 'map', [fn])},
 		'!/': function(fn, a) {return new JS.MethodCall(a, 'reduce', [fn])},
@@ -1005,6 +1140,10 @@ var Wortel = (function() {
 				return new JS.Ternary(r);
 			else
 				return new JS.FnCall(new JS.Fn('', [], [new JS.Prefix('var ', new JS.Assigment([name, x])), new JS.Prefix('return ', new JS.Ternary(r))]), []);
+		},
+		// other
+		'@forjs': function(a, b, c, body) {
+			return new JS.For(a, b, c, body);
 		},
 	
 		// Wortel
