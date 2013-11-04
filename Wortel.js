@@ -1,7 +1,8 @@
 /*
 	Wortel
 	@author: Albert ten Napel
-	@version: 0.66.1
+	@version: 0.66.3
+	@date: 2013-11-4
 
 	TODO:
 		for loop
@@ -9,12 +10,12 @@
 		named fns
 		rest arguments
 		default arguments
-		RPN pointer expressions
 		macro/aliases
+		classes
 */
 
 var Wortel = (function() {
-	var version = '0.66.1';
+	var version = '0.66.3';
 	var _randN = 0;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
@@ -532,12 +533,13 @@ var Wortel = (function() {
 	JS.ExprFn = function(name, args, body, statement) {
 		this.name = name || '';
 		this.args = args || [];
-		this.body = body;
+		this.body = !body? [new JS.Empty()]: Array.isArray(body)? body: [body];
 		this.statement = statement || false;
 	};
 	JS.ExprFn.prototype.compile = function() {
 		var s = 'function '+(!this.name? '': typeof this.name == 'string'? this.name: this.name.compile())+
-				'('+this.args.map(mCompile).join(',')+'){return '+this.body.compile()+'}';
+				'('+this.args.map(mCompile).join(',')+'){'+this.body.slice(0, -1).map(mCompile).join(';')+
+					';return '+this.body[this.body.length-1].compile()+'}';
 		return this.statement? s: '('+s+')';
 	};
 	// Fn
@@ -832,12 +834,57 @@ var Wortel = (function() {
 					i = new JS.Name('i'),
 					l = new JS.Name('l');
 			return new JS.Fn('_sum', [a], [
+				new JS.If([
+					new JS.BinOp('==', new JS.Number('0'), new JS.Prop(a, new JS.Name('length'))), new JS.Prefix('return ', new JS.Number('0'))
+				]),
 				new JS.For(new JS.Prefix('var ', new JS.Assigment([
-					i, new JS.Number('0'),
-					n, new JS.Number('0'),
+					i, new JS.Number('1'),
+					n, new JS.Index(a, new JS.Number('0')),
 					l, new JS.Prop(a, new JS.Name('length'))
 				])), new JS.BinOp('<', i, l), new JS.Suffix('++', i), new JS.Array([new JS.BinOp('+=', n, new JS.Index(a, i))])),
 				new JS.Prefix('return ', n)
+			], true);
+		})(),
+		'_maxl': (function() {
+			var a = new JS.Name('a'),
+					m = new JS.Name('m'),
+					i = new JS.Name('i'),
+					l = new JS.Name('l');
+			return new JS.Fn('_maxl', [a], [
+				new JS.If([
+					new JS.BinOp('==', new JS.Number('0'), new JS.Prop(a, new JS.Name('length'))), new JS.Prefix('return ', new JS.UnOp('-', new JS.Name('Infinity')))
+				]),
+				new JS.For(new JS.Prefix('var ', new JS.Assigment([
+					i, new JS.Number('1'),
+					m, new JS.Index(a, new JS.Number('0')),
+					l, new JS.Prop(a, new JS.Name('length'))
+				])), new JS.BinOp('<', i, l), new JS.Suffix('++', i), new JS.Array([
+					new JS.If([
+						new JS.BinOp('>', new JS.Index(a, i), m), new JS.Assigment([m, new JS.Index(a, i)])
+					])
+				])),
+				new JS.Prefix('return ', m)
+			], true);
+		})(),
+		'_minl': (function() {
+			var a = new JS.Name('a'),
+					m = new JS.Name('m'),
+					i = new JS.Name('i'),
+					l = new JS.Name('l');
+			return new JS.Fn('_maxl', [a], [
+				new JS.If([
+					new JS.BinOp('==', new JS.Number('0'), new JS.Prop(a, new JS.Name('length'))), new JS.Prefix('return ', new JS.Name('Infinity'))
+				]),
+				new JS.For(new JS.Prefix('var ', new JS.Assigment([
+					i, new JS.Number('1'),
+					m, new JS.Index(a, new JS.Number('0')),
+					l, new JS.Prop(a, new JS.Name('length'))
+				])), new JS.BinOp('<', i, l), new JS.Suffix('++', i), new JS.Array([
+					new JS.If([
+						new JS.BinOp('<', new JS.Index(a, i), m), new JS.Assigment([m, new JS.Index(a, i)])
+					])
+				])),
+				new JS.Prefix('return ', m)
 			], true);
 		})(),
 		'_prod': (function() {
@@ -1056,6 +1103,8 @@ var Wortel = (function() {
 		'@cartm': ['_cartm'],
 		'@table': ['_table'],
 		'@fac': ['_fac'],
+		'@maxl': ['_maxl'],
+		'@minl': ['_minl'],
 	};
 	var opToLib = {
 		'@%': '_mod',
@@ -1080,6 +1129,8 @@ var Wortel = (function() {
 		'@cartm': '_cartm',
 		'@table': '_table',
 		'@fac': '_fac',
+		'@maxl': '_maxl',
+		'@minl': '_minl',
 	};
 
 	function wrap(a) {return a instanceof JS.Array? a.val: [a]};
@@ -1094,6 +1145,8 @@ var Wortel = (function() {
 		'@sqrt': function(x) {return new JS.FnCall('Math.sqrt', [x])},
 		'@abs': function(x) {return new JS.FnCall('Math.abs', [x])},
 		'@fac': function(x) {return new JS.FnCall('_fac', [x])},
+		'@maxl': function(x) {return new JS.FnCall('_maxl', [x])},
+		'@minl': function(x) {return new JS.FnCall('_minl', [x])},
 		// binary
 		'+': function(x, y) {return new JS.BinOp('+', x, y)},
 		'-': function(x, y) {return new JS.BinOp('-', x, y)},
@@ -1120,7 +1173,9 @@ var Wortel = (function() {
 		'<=': function(x, y) {return new JS.BinOp('<=', x, y)},
 
 		'||': function(x, y) {return new JS.BinOp('||', x, y)},
+		'@or': function(x, y) {return new JS.BinOp('||', x, y)},
 		'&&': function(x, y) {return new JS.BinOp('&', x, y)},
+		'@and': function(x, y) {return new JS.BinOp('&', x, y)},
 
 		// Function
 		// unary
@@ -1136,7 +1191,7 @@ var Wortel = (function() {
 			}
 		},
 		// binary
-		'&': function(args, body) {return new JS.ExprFn('', wrap(args), body)},
+		'&': function(args, body) {return new JS.ExprFn('', wrap(args), wrap(body))},
 		'@&': function(args, body) {return new JS.Fn('', wrap(args), wrap(body))},
 		'!': function(fn, args) {return new JS.FnCall(fn, [args])},
 		'@!': function(fn, list) {
@@ -1233,7 +1288,9 @@ var Wortel = (function() {
 		// binary
 		':': function(k, v) {return new JS.Assigment([k, v])},
 		'@let': function(o) {
-			return new JS.FnCall(new JS.Fn('', [], [new JS.Prefix('var ', new JS.Assigment(o.val.slice(0, -1))), new JS.Prefix('return ', o.val[o.val.length-1])]), []);
+			return new JS.FnCall(new JS.ExprFn('', [],
+				[new JS.Prefix('var ', new JS.Assigment(o.val.slice(0, -1)))].concat(wrap(o.val[o.val.length-1]))
+			), []);
 		},
 		'@v': function(k, v) {return new JS.Prefix('var ', new JS.Assigment([k, v]))},
 		'@new': function(x, a) {return new JS.Prefix('new ', new JS.FnCall(x, wrap(a)))},
