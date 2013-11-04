@@ -1,0 +1,25 @@
+; simple class
+@class Person[] {
+	[name age]
+	getName &[] ^name
+	getAge &[] ^age
+	work @&[] !console.log "I can't work!"
+}
+
+; simple inheritance
+@class Worker[Person] {
+	work @&[] !console.log 'Working.'
+}
+
+; calling the super constructor
+@class Worker2[Person] {
+	@&[name age job] [
+		@super [name age]
+		:^job job
+	]
+}
+
+; creating objects
+@new Person['Peter' 25]
+@new Worker['Peter' 25]
+@new Worker2['Peter' 25 'Programmer']

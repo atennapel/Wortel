@@ -11,7 +11,7 @@
 		rest arguments
 		default arguments
 		macro/aliases
-		classes
+		mixins
 */
 
 var Wortel = (function() {
@@ -21,7 +21,7 @@ var Wortel = (function() {
 		
 	// Parser
 	var symbols = '~`!@#%^&*-+=|\\:?/><,';
-	var quoteSymbols = '\\^';
+	var quoteSymbols = ['\\', '^', ':!'];
 	function isSymbol(c) {return symbols.indexOf(c) != -1};
 	var brackets = '()[]{}';
 	function isBracket(c) {return brackets.indexOf(c) != -1};
@@ -208,7 +208,7 @@ var Wortel = (function() {
 			else if(c == 'H') ;
 			else if(c == 'I') t = stack.pop(), stack.push(new JS.Index(stack.pop(), t));
 			else if(c == 'J') ;
-			else if(c == 'K') stack.push(new JS.Array([stack.slice(-stack.pop().val)]));
+			else if(c == 'K') stack.push(new JS.Array(stack.slice(-stack.pop().val)));
 			else if(c == 'L') ;
 			else if(c == 'M') ;
 			else if(c == 'N') ;
@@ -319,7 +319,8 @@ var Wortel = (function() {
 	JS.Name.prototype.compile = function(nofn) {
 		if(this.val === '.') return 'null';
 		if(this.val === '..') return 'function(x){return x}';
-		var t = this.val.replace(/(\.[0-9][0-9a-z]*\.)|(\.[0-9][0-9a-z]*$)/gi,
+		var t = this.val.replace(/\.\.\./g, '.prototype.'); 
+		t = t.replace(/(\.[0-9][0-9a-z]*\.)|(\.[0-9][0-9a-z]*$)/gi,
 			function(a) {
 				return a[a.length-1]==='.'?
 					'['+compileNumber(a.substring(1, a.length-1))+'].':
@@ -419,6 +420,14 @@ var Wortel = (function() {
 	JS.BinOp.prototype.compile = function() {
 		return '('+this.a.compile()+this.op+this.b.compile()+')';
 	};
+	// BinOpL
+	JS.BinOpL = function(op, a) {
+		this.op = op;
+		this.a = a;
+	};
+	JS.BinOpL.prototype.compile = function() {
+		return '('+this.a.map(mCompile).join(this.op)+')';
+	};
 	// UnOp
 	JS.UnOp = function(op, a) {
 		this.op = op;
@@ -433,7 +442,7 @@ var Wortel = (function() {
 		this.args = args;
 	};
 	JS.FnCall.prototype.compile = function() {
-		return (typeof this.fn == 'string'? this.fn: '('+this.fn.compile()+')')+'('+this.args.map(mCompile).join(',')+')';
+		return (typeof this.fn == 'string'? this.fn: this.fn instanceof JS.Name? this.fn.compile(): '('+this.fn.compile()+')')+'('+this.args.map(mCompile).join(',')+')';
 	};
 	// MethodCall
 	JS.MethodCall = function(o, mtd, args) {
@@ -558,7 +567,7 @@ var Wortel = (function() {
 	JS.While.prototype.compile = function() {
 		return 'while('+this.c.compile()+'){'+compileArray(this.a)+'}';
 	};
-	// While
+	// For
 	JS.For = function(a, b, c, body) {
 		this.a = a || new JS.Empty();
 		this.b = b || new JS.Empty();
@@ -567,6 +576,15 @@ var Wortel = (function() {
 	};
 	JS.For.prototype.compile = function() {
 		return 'for('+[this.a, this.b, this.c].map(mCompile).join(';')+'){'+compileArray(this.body)+'}';
+	};
+	// ForIn
+	JS.ForIn = function(a, b, body) {
+		this.a = a || new JS.Empty();
+		this.b = b || new JS.Empty();
+		this.body = body || new JS.Array([]);
+	};
+	JS.ForIn.prototype.compile = function() {
+		return 'for('+[this.a, this.b].map(mCompile).join(' in ')+'){'+compileArray(this.body)+'}';
 	};
 	// Assigment
 	JS.Assigment = function(o) {
@@ -597,6 +615,21 @@ var Wortel = (function() {
 
 	// Lib
 	var Lib = {
+		'_extends': (function() {
+			var a = new JS.Name('a'),
+					b = new JS.Name('b'),
+					p = new JS.Name('p');
+			return new JS.Fn('_extends', [a, b], [
+				new JS.ForIn(new JS.Prefix('var ', p), b, new JS.Array([
+					new JS.If([
+						new JS.FnCall('b.hasOwnProperty', [p]), new JS.Assigment([new JS.Index(a, p), new JS.Index(b, p)])
+					])
+				])),
+				new JS.Fn('__', [], [new JS.Assigment([new JS.Name('this.constructor'), a])], true),
+				new JS.Assigment([new JS.Name('__.prototype'), new JS.Name('b.prototype')]),
+				new JS.Assigment([new JS.Name('a.prototype'), new JS.Prefix('new ', new JS.FnCall(new JS.Name('__'), []))])
+			], true);
+		})(),
 		'_fac': (function() {
 			var n = new JS.Name('n'),
 					i = new JS.Name('i'),
@@ -1080,6 +1113,8 @@ var Wortel = (function() {
 		// Boolean
 		// unary
 		'@not': function(x) {return new JS.UnOp('!', x)},
+		'@or': function(x) {return new JS.BinOpL('||', x.val)},
+		'@and': function(x) {return new JS.BinOpL('&&', x.val)},
 		// binary
 		'=': function(x, y) {return new JS.BinOp('==', x, y)},
 		'!=': function(x, y) {return new JS.BinOp('!=', x, y)},
@@ -1091,9 +1126,7 @@ var Wortel = (function() {
 		'<=': function(x, y) {return new JS.BinOp('<=', x, y)},
 
 		'||': function(x, y) {return new JS.BinOp('||', x, y)},
-		'@or': function(x, y) {return new JS.BinOp('||', x, y)},
 		'&&': function(x, y) {return new JS.BinOp('&', x, y)},
-		'@and': function(x, y) {return new JS.BinOp('&', x, y)},
 
 		// Function
 		// unary
@@ -1203,8 +1236,10 @@ var Wortel = (function() {
 			if(o instanceof JS.Object) return new JS.Prefix('var ', new JS.Assigment(o.val));
 			if(o instanceof JS.Array) return new JS.Prefix('var ', new JS.CommaList(o.val));
 		},
+		'@super': function(args) {return new JS.FnCall('_super.call', [new JS.Name('this')].concat(wrap(args)))},
 		// binary
 		':': function(k, v) {return new JS.Assigment([k, v])},
+		':!': function(o, n, v) {return new JS.Assigment([n, operators[o.val](n, v)])},
 		'@let': function(o) {
 			return new JS.FnCall(new JS.ExprFn('', [],
 				[new JS.Prefix('var ', new JS.Assigment(o.val.slice(0, -1)))].concat(wrap(o.val[o.val.length-1]))
@@ -1230,6 +1265,40 @@ var Wortel = (function() {
 		'@forjs': function(a, b, c, body) {
 			return new JS.For(a, b, c, body);
 		},
+		'@class': function(name, args, body) {
+			var args = args instanceof JS.Array || args instanceof JS.Group? args.val: [args];
+			var paren = args[0];
+			var body = body instanceof JS.Array? [body]: body instanceof JS.Object? body.val: [body];
+			var constr = body.length % 2? body[0]: new JS.Fn(name.val, [], [], true);
+			body = body.length % 2? body.slice(1): body;
+			// make constructor from array
+			if(constr instanceof JS.Array) constr = new JS.Fn(name.val, constr.val, 
+				constr.val.map(function(x) {
+					return new JS.Assigment([new JS.Prop(new JS.Name('this'), x), x])
+				}), true);
+			var r = [constr];
+			if(paren) {
+				addLib('_extends');
+				r.push(new JS.FnCall('_extends', [name, new JS.Name('_super')]));
+			}
+			// methods
+			for(var i = 0, l = body.length; i < l; i += 2) {
+				var k = body[i], v = body[i+1];
+				if(k instanceof JS.Name)
+					r.push(new JS.Assigment([
+						new JS.Prop(new JS.Prop(name, new JS.Name('prototype')), k), v
+					]));
+				else
+					r.push(new JS.Assigment([
+						new JS.Index(new JS.Prop(name, new JS.Name('prototype')), k), v
+					]));
+			}
+			// close it up
+			r.push(new JS.Prefix('return ', name));
+			return new JS.Prefix('var ',
+				new JS.Assigment([name, new JS.FnCall(
+					new JS.Fn('', paren? [new JS.Name('_super')]: [], r), paren? [paren]: [])]));
+		},
 	
 		// Wortel
 		// unary
@@ -1254,12 +1323,11 @@ var Wortel = (function() {
 				return compileMathFnRPN(n.val, [a]);
 			return new JS.FnCall(compileMathFnRPN(n.val, null, true), [a]);
 		},
-		/*'!~': function(n, a) {
-			if(a instanceof JS.Number || a instanceof JS.Name ||
-				(a instanceof JS.Array && all(a.val, function(x) {return x instanceof JS.Number || x instanceof JS.Name})))
-				return compilePointerExpr(n.val, a);
-			return new JS.FnCall(compilePointerExpr(n.val), [a]);
-		},*/
+		'!~': function(n, a) {
+			if(a instanceof JS.Number || a instanceof JS.Name)
+				return compilePointerExpr(n.val, [a]);
+			return new JS.FnCall(compilePointerExpr(n.val, null, true), [a]);
+		},
 	};
 
 	return {

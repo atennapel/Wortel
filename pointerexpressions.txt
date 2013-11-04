@@ -34,7 +34,7 @@ G
 H
 I index
 J
-K
+K pick n from stack
 L
 M
 N
