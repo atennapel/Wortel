@@ -8,11 +8,12 @@
 
 ; simple inheritance
 @class Worker[Person] {
+	[name age]
 	work @&[] !console.log 'Working.'
 }
 
 ; calling the super constructor
-@class Worker2[Person] {
+@class Worker2[Worker] {
 	@&[name age job] [
 		@super [name age]
 		:^job job
@@ -20,6 +21,14 @@
 }
 
 ; creating objects
-@new Person['Peter' 25]
-@new Worker['Peter' 25]
-@new Worker2['Peter' 25 'Programmer']
+@var {
+	p 	@new Person['Peter' 25]
+	w 	@new Worker['Peter' 25]
+	w2 	@new Worker2['Peter' 25 'Programmer']
+}
+@!console.log [
+	p.getName. p.getAge.
+	w.getName. w.getAge.
+	w2.getName. w2.getAge.
+]
+p.work. w.work. w2.work.

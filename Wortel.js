@@ -155,8 +155,12 @@ var Wortel = (function() {
 	// Compilation
 	function toJS(ast, sub) {
 		var astc = ast.map(mCompile), lib = [];
-		if(!sub) for(var k in curLibs) lib.push(Lib[k].compile());
-		return lib.concat(astc).filter(function(x) {return x}).join(';');
+		if(sub) 
+			return lib.concat(astc).filter(function(x) {return x}).join(';');
+	 	else {
+			for(var k in curLibs) lib.push(Lib[k].compile());
+			return '(function(){'+lib.concat(astc).filter(function(x) {return x}).join(';')+'})()';
+		}
 	};
 
 	function compile(s, sub) {return toJS(parse(s), sub)};
@@ -1276,6 +1280,7 @@ var Wortel = (function() {
 				constr.val.map(function(x) {
 					return new JS.Assigment([new JS.Prop(new JS.Name('this'), x), x])
 				}), true);
+			else constr = new JS.Prefix('var ', new JS.Assigment([name, constr]));
 			var r = [constr];
 			if(paren) {
 				addLib('_extends');
@@ -1368,13 +1373,14 @@ if(typeof global != 'undefined' && global) {
 			input();
 		} else {
 			var f = args[0];
+			var t = args[1];
 			if(f) {
 				var fs = require('fs');
 				fs.readFile(f, 'ascii', function(e, s) {
 					if(e) console.log('Error: ', e);
-					else {
-						console.log(Wortel.compile(s));
-					}
+					else if(t == '--run' || t == '-r')
+						eval(Wortel.compile(s));
+					else console.log(Wortel.compile(s));
 				});
 			}
 		}
