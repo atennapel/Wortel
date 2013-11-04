@@ -3,7 +3,7 @@ b
 c count
 d dup
 e
-f
+f flatten
 g
 h head
 i init

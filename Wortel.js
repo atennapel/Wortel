@@ -258,7 +258,7 @@ var Wortel = (function() {
 			else if(c == 'c') stack.push(new JS.Prop(stack.pop(), new JS.Name('length')));
 			else if(c == 'd') stack.push(stack[stack.length-1]);
 			else if(c == 'e') ;
-			else if(c == 'f') ;
+			else if(c == 'f') addLib('_flat'), stack.push(new JS.FnCall('_flat', [stack.pop()]));
 			else if(c == 'g') ;
 			else if(c == 'h') stack.push(new JS.Index(stack.pop(), new JS.Number('0')));
 			else if(c == 'i') stack.push(new JS.MethodCall(stack.pop(), 'slice', [new JS.Number('0'), new JS.UnOp('-', new JS.Number('1'))]));
@@ -268,7 +268,7 @@ var Wortel = (function() {
 			else if(c == 'm') ;
 			else if(c == 'n') ;
 			else if(c == 'o') addLib('_sort'), stack.push(new JS.FnCall('_sort', [stack.pop()]));
-			else if(c == 'p') ;
+			else if(c == 'p') addLib('_zip'), t = stack.pop(), stack.push(new JS.FnCall('_zip', [stack.pop(), t]));
 			else if(c == 'q') ;
 			else if(c == 'r') addLib('_rev'), stack.push(new JS.FnCall('_rev', [stack.pop()]));
 			else if(c == 's') ; // no-op
@@ -289,12 +289,12 @@ var Wortel = (function() {
 			else if(c == 'H') ;
 			else if(c == 'I') t = stack.pop(), stack.push(new JS.Index(stack.pop(), t));
 			else if(c == 'J') ;
-			else if(c == 'K') ;
+			else if(c == 'K') stack.push(new JS.Array([stack.slice(-stack.pop().val)]));
 			else if(c == 'L') ;
 			else if(c == 'M') ;
 			else if(c == 'N') ;
 			else if(c == 'O') t = stack.pop(), stack.push(new JS.MethodCall(new JS.Array([stack.pop()]), 'concat', [t]));
-			else if(c == 'P') ;
+			else if(c == 'P') addLib('_part'), stack.push(new JS.FnCall('_part', [stack.pop(), stack.pop()]));
 			else if(c == 'Q') ;
 			else if(c == 'R') ;
 			else if(c == 'S') t = stack.pop(), stack.push(t, stack.pop());
@@ -1232,7 +1232,9 @@ var Wortel = (function() {
 		},
 		// binary
 		':': function(k, v) {return new JS.Assigment([k, v])},
-		'@let': function(o, expr) {return new JS.FnCall(new JS.Fn('', [], [new JS.Prefix('var ', new JS.Assigment(o.val)), new JS.Prefix('return ', expr)]), [])},
+		'@let': function(o) {
+			return new JS.FnCall(new JS.Fn('', [], [new JS.Prefix('var ', new JS.Assigment(o.val.slice(0, -1))), new JS.Prefix('return ', o.val[o.val.length-1])]), []);
+		},
 		'@v': function(k, v) {return new JS.Prefix('var ', new JS.Assigment([k, v]))},
 		'@new': function(x, a) {return new JS.Prefix('new ', new JS.FnCall(x, wrap(a)))},
 		'@instanceof': function(x, y) {return new JS.BinOp(' instanceof ', x, y)},

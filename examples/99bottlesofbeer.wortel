@@ -4,4 +4,5 @@
 		1 '1 bottle of beer on the wall\n1 bottle of beer\nTake one down, pass it around'
 		"{n} bottles of beer on the wall\n{n} bottles of beer\nTake one down, pass it around"
 	}
-} `!.join '\n' !*beer @range [99 0]
+	`!.join '\n' !*beer @range [99 0]
+}

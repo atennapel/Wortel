@@ -1,3 +1,4 @@
 !console.log @let {
 	factors &n !-\%%n @to n
-} !factors 100
+	!factors 100
+}

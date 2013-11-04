@@ -23,20 +23,20 @@ node Wortel input.wortel > output.js
     1 '1 bottle of beer on the wall\n1 bottle of beer\nTake one down, pass it around'
     "{n} bottles of beer on the wall\n{n} bottles of beer\nTake one down, pass it around"
   }
-} `!.join '\n' !*beer @range [99 0]
+	`!.join '\n' !*beer @range [99 0]
+}
 
 ; Some Project Euler problems
 ; Problem 1
-!/^+ !-&n||%%n 3 %%n 5 @to 999
+@sum !-&n||%%n 3 %%n 5 @to 999
 ; Problem 2
-!/^+ !-\~%%2 @rangef [0 1] ^+ \~<4M
+@sum !-\~%%2 @rangef [0 1] ^+ \~<4M
 ; Problem 6
-@let {l @to 100} - @sq !/^+ l !/^+ !*^@sq l
+@let {l @to 100 - @sq @sum l @sum !*^@sq l}
 ; Problem 14
 ~! @to 1Mj &l
 	!!~ShI l @fold &[a b i]?{
 		> a.1 b 	a
 		[i b]
-	} [1N 0] !*
-	&x #@rangef x &n?{%%n 2 /n 2 +*n 3 1} \~>1 l
+	} [1N 0] ~!* l &x #@rangef x &n?{%%n 2 /n 2 +*n 3 1} \~>1
 ```
