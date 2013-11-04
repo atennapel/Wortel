@@ -162,88 +162,6 @@ var Wortel = (function() {
 	function compile(s, sub) {return toJS(parse(s), sub)};
 
 	// MathFn and Pointer Expr
-	/*function compilePointerExpr(val, init) {
-		var val = val.replace(/\_/g, '');
-		if(!val) val = 'X';
-		if(/[a-z]/.test(val[0])) val = 'X'+val;
-		if(/[a-z]/.test(val[val.length-1])) val = val+'X';
-		var seps = val.match(/\$[0-9A-Za-z\_]+\$|[0-9\.]+[A-Z]*|[A-Z]+|[a-z]+/g).map(function(x) {return /[a-z]+/.test(x)? x: null});
-		var t = val.match(/\$[0-9A-Za-z\_]+\$|[0-9\.]+[A-Z]*|[A-Z]+/g).map(function(x, i) {
-			if(/[A-Z]/.test(x[0]) && seps && (seps[i] == 'c')) return x;
-
-			if(x[0] == '$') {
-				var expr = x.slice(1, -1);
-				return compileMathFn(expr, null, true);
-			}
-
-			var n = init || new JS.Name('x');
-			var s = x.match(/[0-9]*\.[0-9]+|[0-9]+|[A-Z]/g);
-			while(s.length > 0) {
-				var c = s.shift(), na = +c;
-				if(!isNaN(na)) n = new JS.Number(''+na);
-				else if(c == 'X') n = init || new JS.Name('x');
-				else if(c == 'Y') n = new JS.Name('y');
-				else if(c == 'Z') n = new JS.Name('z');
-				else if(c == 'P') n = new JS.Name('p');
-				else if(c == 'Q') n = new JS.Name('q');
-				else if(c == 'W') n = new JS.Array([n]);
-				else if(c == 'V') addLib('_wrap'), n = new JS.FnCall('_wrap', [n]);
-				else if(c == 'J') addLib('_sum'), n = new JS.FnCall('_sum', [n]);
-				else if(c == 'K') addLib('_prod'), n = new JS.FnCall('_prod', [n]);
-				else if(c == 'N') n = new JS.BinOp('*', n, new JS.UnOp('-', new JS.Number('1')));
-				else if(c == 'D') n = new JS.BinOp('-', n, new JS.Number('1'));
-				else if(c == 'E') n = new JS.BinOp('+', n, new JS.Number('1'));
-				else if(c == 'A') addLib('_range'), n = new JS.FnCall('_range', [new JS.Array([new JS.Number('0'), new JS.BinOp('-', n, new JS.Number('1'))])]);
-				else if(c == 'B') addLib('_range'), n = new JS.FnCall('_range', [new JS.Array([new JS.Number('1'), n])]);
-				else if(c == 'C') n = new JS.Prop(n, new JS.Name('length'));
-				else if(c == 'H')	n = new JS.Index(n, new JS.Number('0'));
-				else if(c == 'T') n = new JS.MethodCall(n, 'slice', [new JS.Number('1')]);
-				else if(c == 'L') addLib('_last'), n = new JS.FnCall('_last', [n]);
-				else if(c == 'R') addLib('_rev'), n = new JS.FnCall('_rev', [n]);
-				else if(c == 'S') addLib('_sort'), n = new JS.FnCall('_sort', [n]);
-				else if(c == 'O') addLib('_sortl'), n = new JS.FnCall('_sortl', [n]);
-				else if(c == 'U') addLib('_uniq'), n = new JS.FnCall('_uniq', [n]);
-				else if(c == 'F') addLib('_flat'), n = new JS.FnCall('_flat', [n]);
-				else if(c == 'I') n = new JS.MethodCall(n, 'slice', [new JS.Number('0'), new JS.UnOp('-', new JS.Number('1'))]);
-				else throw 'Unknown pointer modifier: '+c;
-			}
-			return n;
-		}).reduce(function(a, b, i) {
-			var sep = seps[i] || 'n';
-			if(sep[0] == 'r') {
-				sep = sep.slice(1);
-				var c = a; a = b; b = c;
-			}
-			if(sep == 'j') return new JS.MethodCall(a, 'concat', [b]);
-			if(sep == 'i') return new JS.Index(a, b);
-			if(sep == 'p') {addLib('_part'); return new JS.FnCall('_part', [b, a])};
-			if(sep == 'z') {addLib('_zip'); return new JS.FnCall('_zip', [a, b])};
-			if(sep == 'a') {addLib('_cart'); return new JS.FnCall('_cart', [a, b])};
-			if(sep == 'o') return new JS.MethodCall(new JS.Array([a]), 'concat', [b]);
-			if(sep == 's') return new JS.MethodCall(a, 'slice', [b]);
-			if(sep == 't') return new JS.MethodCall(a, 'slice', [new JS.Number('0'), b]);
-			if(sep == 'c') return compilePointerExpr(b, a);
-			if(sep == 'n') return new JS.FnCall(new JS.ExprFn('',
-				[new JS.Name('x'), new JS.Name('y'), new JS.Name('z'), new JS.Name('p'), new JS.Name('q')], b), [a]);
-			if(sep == 'b') return new JS.FnCall(new JS.ExprFn('',
-				[new JS.Name('x'), new JS.Name('y'), new JS.Name('z'), new JS.Name('p'), new JS.Name('q')], b),
-				[new JS.Index(a, new JS.Number('0')),
-				 new JS.Index(a, new JS.Number('1')),
-				 new JS.Index(a, new JS.Number('2')),
-				 new JS.Index(a, new JS.Number('3')),
-				 new JS.Index(a, new JS.Number('4'))]);
-			if(sep == 'm') return new JS.MethodCall(a, 'map',
-				[new JS.ExprFn('', [new JS.Name('x')], b)]);
-			if(sep == 'r') return new JS.MethodCall(a, 'reduce',
-				[new JS.ExprFn('', [new JS.Name('x'), new JS.Name('y')], b)]);
-			if(sep == 'f') return new JS.MethodCall(a, 'filter',
-				[new JS.ExprFn('', [new JS.Name('x')], b)]);
-			if(sep == 'd') return new JS.MethodCall(a, 'filter',
-				[new JS.ExprFn('', [new JS.Name('x')], new JS.BinOp('!==', new JS.Name('x'), b))]);
-		});
-		if(init) return t;
-		return new JS.ExprFn('', [new JS.Name('x'), new JS.Name('y'), new JS.Name('z'), new JS.Name('p'), new JS.Name('q')], t);
-	};*/
 	function compilePointerExpr(expr, inp, fn, st) {
 		var expr = expr.replace(/\_|\s/g, '');
 		var inp = inp || [], x = inp[0] || new JS.Name('x'),
@@ -254,8 +172,8 @@ var Wortel = (function() {
 			var c = a[i], n = +c;
 			if(c[0] == '$') compileMathFnRPN(c.slice(1, -1), stack, false, true);
 			if(!isNaN(n)) stack.push(new JS.Number(n));
-			else if(c == 'a') ;
-			else if(c == 'b') ;
+			else if(c == 'a') addLib('_sum'), stack.push(new JS.FnCall('_sum', [stack.pop()]));
+			else if(c == 'b') addLib('_prod'), stack.push(new JS.FnCall('_prod', [stack.pop()]));
 			else if(c == 'c') stack.push(new JS.Prop(stack.pop(), new JS.Name('length')));
 			else if(c == 'd') stack.push(stack[stack.length-1]);
 			else if(c == 'e') ;
@@ -266,8 +184,8 @@ var Wortel = (function() {
 			else if(c == 'j') t = stack.pop(), stack.push(new JS.MethodCall(stack.pop(), 'concat', [t]));
 			else if(c == 'k') ;
 			else if(c == 'l') addLib('_last'), stack.push(new JS.FnCall('_last', [stack.pop()]));
-			else if(c == 'm') ;
-			else if(c == 'n') ;
+			else if(c == 'm') addLib('_maxl'), stack.push(new JS.FnCall('_maxl', [stack.pop()]));
+			else if(c == 'n') addLib('_minl'), stack.push(new JS.FnCall('_minl', [stack.pop()]));
 			else if(c == 'o') addLib('_sort'), stack.push(new JS.FnCall('_sort', [stack.pop()]));
 			else if(c == 'p') addLib('_zip'), t = stack.pop(), stack.push(new JS.FnCall('_zip', [stack.pop(), t]));
 			else if(c == 'q') ;
@@ -280,8 +198,8 @@ var Wortel = (function() {
 			else if(c == 'x') ;
 			else if(c == 'y') t = [stack.pop(), stack.pop(), stack.pop()], stack.push(t[1], t[0], t[2]);
 			else if(c == 'z') t = [stack.pop(), stack.pop(), stack.pop()], stack.push(t[0], t[2], t[1]);
-			else if(c == 'A') ;
-			else if(c == 'B') ;
+			else if(c == 'A') addLib('_range'), stack.push(new JS.FnCall('_range', [new JS.Array([new JS.Number('1'), stack.pop()])]));
+			else if(c == 'B') addLib('_range'), stack.push(new JS.FnCall('_range', [new JS.Array([new JS.Number('0'), new JS.BinOp('-', stack.pop(), new JS.Number('1'))])]));
 			else if(c == 'C') stack.push(stack[stack.length-2]);
 			else if(c == 'D') stack.pop();
 			else if(c == 'E') ;
@@ -297,7 +215,7 @@ var Wortel = (function() {
 			else if(c == 'O') t = stack.pop(), stack.push(new JS.MethodCall(new JS.Array([stack.pop()]), 'concat', [t]));
 			else if(c == 'P') addLib('_part'), stack.push(new JS.FnCall('_part', [stack.pop(), stack.pop()]));
 			else if(c == 'Q') ;
-			else if(c == 'R') ;
+			else if(c == 'R') addLib('_range'), stack.push(new JS.FnCall('_range', [stack.pop()]));
 			else if(c == 'S') t = stack.pop(), stack.push(t, stack.pop());
 			else if(c == 'T') t = stack.pop(), stack.push(new JS.MethodCall(stack.pop(), 'slice', [new JS.Number('0'), t]));
 			else if(c == 'U') ;

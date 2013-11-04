@@ -1,5 +1,5 @@
-a
-b
+a sum
+b	prod
 c count
 d dup
 e
@@ -10,10 +10,10 @@ i init
 j join
 k
 l last
-m
-n
+m max
+n	min
 o sort
-p
+p zip
 q
 r rev
 s no-op
@@ -24,11 +24,11 @@ w wrap
 x
 y rotl top3
 z rotr top3
-A
-B
+A to
+B	til
 C over
 D pop
-E
+E 
 F
 G
 H
@@ -41,7 +41,7 @@ N
 O cons
 P
 Q
-R
+R range
 S swap
 T take n
 U
