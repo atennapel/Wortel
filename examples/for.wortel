@@ -1,0 +1,37 @@
+; looping over array
+@for x of @to 3
+	!console.log x
+; with index
+@for [i x] of @to 3
+	!!console.log i x
+; with a block
+@for x of @to 3 [
+	!console.log 'a'
+	!console.log 'b'
+]
+
+; looping over object
+@var {
+	o {a 1 b 2 c 3}
+}
+@for k in o
+	!console.log k
+; with value
+@for [k v] in o
+	!!console.log k v
+; with hasOwnProperty check
+@for k own o
+	!console.log k
+@for [k v] own o
+	!!console.log k v
+
+; looping over 2d array
+@var {
+	a [
+		[0 1 2]
+		[1 2 3]
+		[2 3 4]
+	]
+}
+@for [x y v subarr] of2 a
+	@!console.log [x y v subarr]

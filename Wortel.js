@@ -1,21 +1,20 @@
 /*
 	Wortel
 	@author: Albert ten Napel
-	@version: 0.66.3
-	@date: 2013-11-4
+	@version: 0.66.4
+	@date: 2013-11-5
 
 	TODO:
-		for loop
-		list comprehension
 		named fns
 		rest arguments
-		default arguments
-		macro/aliases
+		?default arguments
+		?macro/aliases
 		mixins
+		chaining
 */
 
 var Wortel = (function() {
-	var version = '0.66.3';
+	var version = '0.66.4';
 	var _randN = 0;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
@@ -154,9 +153,9 @@ var Wortel = (function() {
 
 	// Compilation
 	function toJS(ast, sub) {
-		var astc = ast.map(mCompile), lib = [];
+		var lib = [], astc = ast.map(mCompile).filter(function(x) {return x});
 		if(sub) 
-			return lib.concat(astc).filter(function(x) {return x}).join(';');
+			return astc.join(';');
 	 	else {
 			for(var k in curLibs) lib.push(Lib[k].compile());
 			return '(function(){'+lib.concat(astc).filter(function(x) {return x}).join(';')+'})()';
@@ -1143,6 +1142,10 @@ var Wortel = (function() {
 				for(var i = a.length-2; i >= 0; i--)
 					cur = new JS.FnCall(a[i], [cur]);
 				return new JS.ExprFn('', [], cur);
+			} else if(l instanceof JS.Group) {
+				return new JS.FnCall(new JS.ExprFn('', [],
+					[new JS.Prefix('var ', new JS.Assigment([new JS.Name('_r'), new JS.Array([])]))]
+						.concat(l.val).concat(new JS.Name('_r'))), []);
 			}
 		},
 		// binary
@@ -1232,9 +1235,10 @@ var Wortel = (function() {
 		// JS Keywords
 		// unary
 		'@return': function(x) {return new JS.Prefix('return ', x)},
+		'@>': function(x) {return new JS.FnCall('_r.push', [x])},
 		'@typeof': function(x) {return new JS.Prefix('typeof ', x)},
 		'?': function(o) {return new JS.Ternary(o.val)},
-		'@if': function(o) {return new JS.If(o.val)},
+		'@iff': function(o) {return new JS.If(o.val)},
 		'@:': function(o) {return new JS.Assigment(o.val)},
 		'@var': function(o) {
 			if(o instanceof JS.Object) return new JS.Prefix('var ', new JS.Assigment(o.val));
@@ -1242,6 +1246,7 @@ var Wortel = (function() {
 		},
 		'@super': function(args) {return new JS.FnCall('_super.call', [new JS.Name('this')].concat(wrap(args)))},
 		// binary
+		'@if': function(c, b) {return new JS.If([c, b])},
 		':': function(k, v) {return new JS.Assigment([k, v])},
 		':!': function(o, n, v) {return new JS.Assigment([n, operators[o.val](n, v)])},
 		'@let': function(o) {
@@ -1266,8 +1271,95 @@ var Wortel = (function() {
 				return new JS.FnCall(new JS.Fn('', [], [new JS.Prefix('var ', new JS.Assigment([name, x])), new JS.Prefix('return ', new JS.Ternary(r))]), []);
 		},
 		// other
-		'@forjs': function(a, b, c, body) {
+		'@fori': function(a, b, c, body) {
 			return new JS.For(a, b, c, body);
+		},
+		'@for': function(arg, type, val, body) {
+			var type = ''+type.val, body = wrap(body);
+			if(type == 'of') {
+				var arg = wrap(arg);
+				var nameI = arg.length == 2? arg[0]: randVar();
+				var nameV = arg.length == 2? arg[1]: arg[0];
+				var nameL = randVar();
+				var nameC = randVar(); 
+				return new JS.For(
+					new JS.Prefix('var ', new JS.Assigment([
+						nameI, new JS.Number('0'),
+						nameC, val,
+						nameL, new JS.Prop(nameC, new JS.Name('length'))
+					])),
+					new JS.BinOp('<', nameI, nameL),
+					new JS.Suffix('++', nameI),
+					new JS.Array([new JS.Prefix('var ', new JS.Assigment([
+						nameV, new JS.Index(nameC, nameI)
+					]))].concat(body))
+				);
+			} else if(type == 'of2') {
+				var arg = wrap(arg);
+				var nameV = arg.length <= 2? arg[0]: arg[2];
+				var nameC2 = arg.length == 2? arg[1]: arg.length > 3? arg[3]: randVar();
+				var nameX = arg.length >= 3? arg[0]: randVar();
+				var nameY = arg.length >= 3? arg[1]: randVar();
+				var nameL1 = randVar();
+				var nameL2 = randVar();
+				var nameC = randVar(); 
+				return new JS.For(
+					new JS.Prefix('var ', new JS.Assigment([
+						nameY, new JS.Number('0'),
+						nameC, val,
+						nameL1, new JS.Prop(nameC, new JS.Name('length'))
+					])),
+					new JS.BinOp('<', nameY, nameL1),
+					new JS.Suffix('++', nameY),
+					new JS.Array([
+						new JS.For(
+							new JS.Prefix('var ', new JS.Assigment([
+								nameX, new JS.Number('0'),
+								nameC2, new JS.Index(nameC, nameY),
+								nameL2, new JS.Prop(nameC2, new JS.Name('length'))
+							])),
+							new JS.BinOp('<', nameX, nameL2),
+							new JS.Suffix('++', nameX),
+							new JS.Array([
+								new JS.Prefix('var ', new JS.Assigment([nameV, new JS.Index(nameC2, nameX)]))
+							].concat(body))
+						)
+					])
+				);
+			} else if(type == 'in') {
+				var arg = wrap(arg);
+				if(arg.length == 1)
+					return new JS.ForIn(
+						new JS.Prefix('var ', arg[0]),
+						val,
+						new JS.Array(body)
+					);
+				else if(arg.length == 2)
+					return new JS.ForIn(
+						new JS.Prefix('var ', arg[0]),
+						val,
+						new JS.Array([new JS.Prefix('var ', new JS.Assigment([arg[1], new JS.Index(val, arg[0])]))].concat(body))
+					);
+			} else if(type == 'own') {
+				var arg = wrap(arg);
+				if(arg.length == 1)
+					return new JS.ForIn(
+						new JS.Prefix('var ', arg[0]),
+						val,
+						new JS.Array([new JS.If([
+							new JS.FnCall(new JS.Prop(val, new JS.Name('hasOwnProperty')), [arg[0]]), new JS.Array(body)
+						])])
+					);
+				else if(arg.length == 2)
+					return new JS.ForIn(
+						new JS.Prefix('var ', arg[0]),
+						val,
+						new JS.Array([new JS.If([
+							new JS.FnCall(new JS.Prop(val, new JS.Name('hasOwnProperty')), [arg[0]]),
+							new JS.Array([new JS.Prefix('var ', new JS.Assigment([arg[1], new JS.Index(val, arg[0])]))].concat(body))
+						])])
+					);
+			}
 		},
 		'@class': function(name, args, body) {
 			var args = args instanceof JS.Array || args instanceof JS.Group? args.val: [args];
