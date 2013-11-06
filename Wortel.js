@@ -10,6 +10,7 @@
 		named fns
 		rest arguments
 		memoize
+		complex partial application
 
 		?mixins
 		?default arguments
@@ -1286,6 +1287,7 @@ var Wortel = (function() {
 		'@uniq': function(n) {return new JS.FnCall('_uniq', [n])},
 		'@flat': function(n) {return new JS.FnCall('_flat', [n])},
 		'@wrap': function(n) {return new JS.FnCall('_wrap', [n])},
+		'&,': function(n) {return new JS.Array([n])},
 		'@sum': function(n) {return new JS.FnCall('_sum', [n])},
 		'@prod': function(n) {return new JS.FnCall('_prod', [n])},
 		'@zipm': function(n) {return new JS.FnCall('_zipm', [n])},

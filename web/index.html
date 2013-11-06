@@ -7,17 +7,30 @@
 		<pre id='out'>
 		</pre>
 		<script src='Wortel.js'></script>
-		<script id='scr'>
+		<script id='scr' type='text/wortel'>
 			@vars {
 				inp !document.getElementById 'in'
 				outp !document.getElementById 'out'
 				b !document.getElementById 'b'
 				s ''
+				show &o?{
+					@or [=@typeof o 'number' =@typeof o 'boolean' =@typeof o 'undefined' == o .]
+						+'' o
+					=@typeof o 'string'
+						++ '"' o '"' 
+					!Array.isArray o
+						"[{@join ' ' !*show o}]"
+					@let {
+						keys !Object.keys o
+						vals !* &k !show `k o keys
+						@sum['{' @join ' ' !*\@join ' ' @zip keys vals '}']
+					}
+				}
 			}
 			!Wortel.addLibTo window
 			:b.onclick^[
 				@: {
-					s +s ~+ '\n' !eval !!Wortel.compile inp.value true
+					s +s ~+ '\n' !show !eval !!Wortel.compile inp.value true
 					outp.innerHTML s
 				}
 			]
