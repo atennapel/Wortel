@@ -10,7 +10,6 @@
 		?default arguments
 		?macro/aliases
 		mixins
-		add assigments to chaining
 		all/any/none/one
 		allf/anyf/nonef/onef
 		powf
@@ -1313,8 +1312,15 @@ var Wortel = (function() {
 						if(a.val[0] == '.') c = new	JS.MethodCall(c, new JS.Name(a.val.slice(1)), ba);
 						else c = new JS.FnCall(a, [c].concat(ba));
 					} else c = new JS.FnCall(new JS.Index(c, a), ba);
+				} else if(a instanceof JS.Block && a.val == ':') {
+					var args = a.args;
+					if(args[0] instanceof JS.Name && args[0].val[0] == '.')
+						args[0] = new JS.Prop(c, new JS.Name(args[0].val.slice(1)));
+					c = a;
+					i--
 				} else {
-					c = a instanceof JS.Name && a.val[0] == '.'? new JS.Prop(c, new JS.Name(a.val.slice(1))): new JS.Index(c, a);
+					c = a instanceof JS.Name && a.val[0] == '.'? new JS.Prop(c, new JS.Name(a.val.slice(1))):
+							a instanceof JS.Block? a: new JS.Index(c, a);
 					i--;
 				}
 				r.push(c);

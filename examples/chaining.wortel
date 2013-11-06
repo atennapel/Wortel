@@ -11,8 +11,9 @@
 
 ; calling methods on the same object
 ; @| will not chain but makes seperate statements
+; @| also handles : assigments
 ; for example with a canvas context
 @| context {
+	:.fillStyle 'blue'
 	.fillRect [0 0 100 100]
-	.fillRect [10 10 10 10]
 }
