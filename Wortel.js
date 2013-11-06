@@ -1,8 +1,8 @@
 /*
 	Wortel
 	@author: Albert ten Napel
-	@version: 0.66.4
-	@date: 2013-11-5
+	@version: 0.66.5
+	@date: 2013-11-6
 
 	TODO:
 		named fns
@@ -10,11 +10,14 @@
 		?default arguments
 		?macro/aliases
 		mixins
-		chaining
+		add assigments to chaining
+		all/any/none/one
+		allf/anyf/nonef/onef
+		powf
 */
 
 var Wortel = (function() {
-	var version = '0.66.4';
+	var version = '0.66.5';
 	var _randN = 0;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
@@ -397,6 +400,13 @@ var Wortel = (function() {
 	};
 	JS.Group.prototype.compile = function() {
 		return this.val.length == 0? 'undefined': '('+this.val.map(mCompile).join(',')+')';
+	};
+	// SemiGroup
+	JS.SemiGroup = function(a) {
+		this.val = a;
+	};
+	JS.SemiGroup.prototype.compile = function() {
+		return this.val.length == 0? '': ';'+this.val.map(mCompile).join(';')+';';
 	};
 	// Object
 	JS.Object = function(a) {
@@ -1021,6 +1031,9 @@ var Wortel = (function() {
 		'_sortl': new JS.Fn('_sortl', [new JS.Name('a')], [
 			new JS.Prefix('return ', new JS.MethodCall(new JS.MethodCall(new JS.Array([]), 'concat', [new JS.Name('a')]), 'sort', []))
 		], true),
+		'_sortf': new JS.Fn('_sortf', [new JS.Name('f'), new JS.Name('a')], [
+			new JS.Prefix('return ', new JS.MethodCall(new JS.MethodCall(new JS.Array([]), 'concat', [new JS.Name('a')]), 'sort', [new JS.Name('f')]))
+		], true),
 	};
 	function addLibTo(obj) {
 		for(var k in Lib) obj[k] = eval('('+Lib[k].compile()+')');
@@ -1042,6 +1055,7 @@ var Wortel = (function() {
 		'@rev': ['_rev'],
 		'@sort': ['_sort'],
 		'@sortl': ['_sortl'],
+		'@sortf': ['_sortf'],
 		'@part': ['_part'],
 		'@zip': ['_zip'],
 		'@uniq': ['_uniq'],
@@ -1068,6 +1082,7 @@ var Wortel = (function() {
 		'@rev': '_rev',
 		'@sort': '_sort',
 		'@sortl': '_sortl',
+		'@sortf': '_sortf',
 		'@part': '_part',
 		'@zip': '_zip',
 		'@uniq': '_uniq',
@@ -1109,7 +1124,7 @@ var Wortel = (function() {
 		'%': function(x, y) {return new JS.BinOp('%', x, y)},
 		'%%': function(x, y) {return new JS.BinOp('==', new JS.BinOp('%', x, y), new JS.Number(0))},
 		'@%': function(x, y) {return new JS.FnCall('_mod', [x, y])},
-		'^': function(x, y) {return new JS.FnCall('Math.pow', [x, y])},
+		'@^': function(x, y) {return new JS.FnCall('Math.pow', [x, y])},
 		'@max': function(x, y) {return new JS.FnCall('Math.max', [x, y])},
 		'@min': function(x, y) {return new JS.FnCall('Math.min', [x, y])},
 
@@ -1129,7 +1144,7 @@ var Wortel = (function() {
 		'<=': function(x, y) {return new JS.BinOp('<=', x, y)},
 
 		'||': function(x, y) {return new JS.BinOp('||', x, y)},
-		'&&': function(x, y) {return new JS.BinOp('&', x, y)},
+		'&&': function(x, y) {return new JS.BinOp('&&', x, y)},
 
 		// Function
 		// unary
@@ -1198,6 +1213,7 @@ var Wortel = (function() {
 		'@rev': function(n) {return new JS.FnCall('_rev', [n])},
 		'@sort': function(n) {return new JS.FnCall('_sort', [n])},
 		'@sortl': function(n) {return new JS.FnCall('_sortl', [n])},
+		'@sortf': function(f, n) {return new JS.FnCall('_sortf', [f, n])},
 
 		'@uniq': function(n) {return new JS.FnCall('_uniq', [n])},
 		'@flat': function(n) {return new JS.FnCall('_flat', [n])},
@@ -1269,6 +1285,41 @@ var Wortel = (function() {
 				return new JS.Ternary(r);
 			else
 				return new JS.FnCall(new JS.Fn('', [], [new JS.Prefix('var ', new JS.Assigment([name, x])), new JS.Prefix('return ', new JS.Ternary(r))]), []);
+		},
+		'|': function(o, ch) {
+			var ar = ch.val, c = o;
+			for(var i = 0, l = ar.length; i < l; i += 2) {
+				var a = ar[i], b = ar[i+1];
+				if(b instanceof JS.Array) {
+					var ba = b.val;
+					if(a instanceof JS.Name) {
+						if(a.val[0] == '.') c = new	JS.MethodCall(c, new JS.Name(a.val.slice(1)), ba);
+						else c = new JS.FnCall(a, [c].concat(ba));
+					} else c = new JS.FnCall(new JS.Index(c, a), ba);
+				} else {
+					c = a instanceof JS.Name && a.val[0] == '.'? new JS.Prop(c, new JS.Name(a.val.slice(1))): new JS.Index(c, a);
+					i--;
+				}
+			}
+			return c;
+		},
+		'@|': function(o, ch) {
+			var ar = ch.val;
+			for(var i = 0, l = ar.length, r = []; i < l; i += 2) {
+				var a = ar[i], b = ar[i+1], c = o;
+				if(b instanceof JS.Array) {
+					var ba = b.val;
+					if(a instanceof JS.Name) {
+						if(a.val[0] == '.') c = new	JS.MethodCall(c, new JS.Name(a.val.slice(1)), ba);
+						else c = new JS.FnCall(a, [c].concat(ba));
+					} else c = new JS.FnCall(new JS.Index(c, a), ba);
+				} else {
+					c = a instanceof JS.Name && a.val[0] == '.'? new JS.Prop(c, new JS.Name(a.val.slice(1))): new JS.Index(c, a);
+					i--;
+				}
+				r.push(c);
+			}
+			return new JS.SemiGroup(r);
 		},
 		// other
 		'@fori': function(a, b, c, body) {

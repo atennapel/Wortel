@@ -1,0 +1,18 @@
+; chaining
+| obj {
+	.method1 [arg1 arg2 arg3]
+	.method2 [arg1 arg2 arg3]
+	.property1
+	.method3 [arg1 arg2 arg3]
+	fn [arg2] ; the previous obj will be the first argument
+	'a' [arg] ; a property method
+	(a) [arg] ; a property method with an identifier
+}
+
+; calling methods on the same object
+; @| will not chain but makes seperate statements
+; for example with a canvas context
+@| context {
+	.fillRect [0 0 100 100]
+	.fillRect [10 10 10 10]
+}
