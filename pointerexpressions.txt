@@ -14,7 +14,7 @@ m max
 n	min
 o sort
 p zip
-q
+q equality
 r rev
 s no-op
 t tail
@@ -39,8 +39,8 @@ L
 M
 N
 O cons
-P
-Q
+P partition
+Q strict equality
 R range
 S swap
 T take n

@@ -8,15 +8,16 @@
 		</pre>
 		<script src='Wortel.js'></script>
 		<script id='scr'>
-			@var {
+			@vars {
 				inp !document.getElementById 'in'
 				outp !document.getElementById 'out'
 				b !document.getElementById 'b'
 				s ''
 			}
+			!Wortel.addLibTo window
 			:b.onclick^[
 				@: {
-					s +s ~+ '\n' !eval !Wortel.compile inp.value
+					s +s ~+ '\n' !eval !!Wortel.compile inp.value true
 					outp.innerHTML s
 				}
 			]

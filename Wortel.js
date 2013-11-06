@@ -1,12 +1,15 @@
 /*
 	Wortel
 	@author: Albert ten Napel
-	@version: 0.66.5
+	@version: 0.66.6
 	@date: 2013-11-6
 
 	TODO:
+		write unit tests		
+
 		named fns
 		rest arguments
+		memoize
 
 		?mixins
 		?default arguments
@@ -15,17 +18,16 @@
 		all/any/none/one
 		allf/anyf/nonef/onef
 		powf
-		maxf/minf
 */
 
 var Wortel = (function() {
-	var version = '0.66.5';
+	var version = '0.66.6';
 	var _randN = 0;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
 	// Parser
 	var symbols = '~`!@#%^&*-+=|\\:?/><,';
-	var quoteSymbols = ['\\', '^', ':!'];
+	var quoteSymbols = ['\\', '^', '%^', ':!'];
 	function isSymbol(c) {return symbols.indexOf(c) != -1};
 	var brackets = '()[]{}';
 	function isBracket(c) {return brackets.indexOf(c) != -1};
@@ -79,7 +81,7 @@ var Wortel = (function() {
 				r.splice(i, 2, r[i+1]);
 			}
 		for(var i = 0, c; c = r[i], i < r.length; i++)
-			if(c.type == 'symbol' && quoteSymbols.indexOf(c.val) != -1 && r[i+1].type == 'symbol')
+			if(c.type == 'symbol' && quoteSymbols.indexOf(c.val) != -1 && r[i+1].type == 'symbol' && quoteSymbols.indexOf(r[i+1].val) == -1)
 				r[i+1].quoted = true;
 
 		return toAST(groupBrackets(r));
@@ -196,7 +198,7 @@ var Wortel = (function() {
 			else if(c == 'n') addLib('_minl'), stack.push(new JS.FnCall('_minl', [stack.pop()]));
 			else if(c == 'o') addLib('_sort'), stack.push(new JS.FnCall('_sort', [stack.pop()]));
 			else if(c == 'p') addLib('_zip'), t = stack.pop(), stack.push(new JS.FnCall('_zip', [stack.pop(), t]));
-			else if(c == 'q') ;
+			else if(c == 'q') t = stack.pop(), stack.push(new JS.BinOp('==', stack.pop(), t));
 			else if(c == 'r') addLib('_rev'), stack.push(new JS.FnCall('_rev', [stack.pop()]));
 			else if(c == 's') ; // no-op
 			else if(c == 't') stack.push(new JS.MethodCall(stack.pop(), 'slice', [new JS.Number('1')]));
@@ -222,7 +224,7 @@ var Wortel = (function() {
 			else if(c == 'N') ;
 			else if(c == 'O') t = stack.pop(), stack.push(new JS.MethodCall(new JS.Array([stack.pop()]), 'concat', [t]));
 			else if(c == 'P') addLib('_part'), stack.push(new JS.FnCall('_part', [stack.pop(), stack.pop()]));
-			else if(c == 'Q') ;
+			else if(c == 'Q') t = stack.pop(), stack.push(new JS.BinOp('===', stack.pop(), t));
 			else if(c == 'R') addLib('_range'), stack.push(new JS.FnCall('_range', [stack.pop()]));
 			else if(c == 'S') t = stack.pop(), stack.push(t, stack.pop());
 			else if(c == 'T') t = stack.pop(), stack.push(new JS.MethodCall(stack.pop(), 'slice', [new JS.Number('0'), t]));
@@ -1306,6 +1308,7 @@ var Wortel = (function() {
 		'@rep': function(n, v) {return new JS.FnCall('_rep', [n, v])},
 		'@each': function(fn, a) {return new JS.MethodCall(a, 'forEach', [fn])},
 		',': function(a, b) {return new JS.MethodCall(a instanceof JS.String || a instanceof JS.Number? new JS.Array([a]): a, 'concat', [b])},
+		'@,': function(a, b) {return new JS.Array([a, b])},
 		'!*': function(fn, a) {return new JS.MethodCall(a, 'map', [fn])},
 		'!/': function(fn, a) {return new JS.MethodCall(a, 'reduce', [fn])},
 		'!-': function(fn, a) {return new JS.MethodCall(a, 'filter', [fn])},
@@ -1526,7 +1529,7 @@ var Wortel = (function() {
 		'~': function(n) {return compilePointerExpr(n.val, null, true)},
 		'#~': function(n) {return compileMathFnRPN(n.val, null, true)},
 		'^': function(bl) {
-			if(bl instanceof JS.Block) {
+			if(bl instanceof JS.Block && bl.quoted) {
 				checkLib(bl.val);
 				if(opToLib[bl.val]) return new JS.Name(opToLib[bl.val]);
 				else {
@@ -1537,6 +1540,16 @@ var Wortel = (function() {
 			} else if(bl instanceof JS.Name) return new JS.Name('this.'+bl.val);
 			else if(bl instanceof JS.Array) return new JS.Fn('', [], wrap(bl));
 			return new JS.Empty();
+		},
+		'%^': function(bl) {
+			var id = randVar();
+			if(bl instanceof JS.Block && bl.quoted) {
+				checkLib(bl.val);
+				for(var i = 0, n = operators[bl.val].length, args = []; i < n; i++) args.push(id);
+				return new JS.ExprFn('', [id], operators[bl.val].apply(null, args));
+			} else {
+				return new JS.ExprFn('', [id], new JS.FnCall(bl, [id, id]));
+			}
 		},
 		// binary
 		'!#~': function(n, a) {
