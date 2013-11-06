@@ -38,9 +38,5 @@ node Wortel input.wortel > output.js
 ; Problem 6
 @let {l @to 100 - @sq @sum l @sum !*^@sq l}
 ; Problem 14
-~! @to 1Mj &l
-	!!~ShI l @fold &[a b i]?{
-		> a.1 b 	a
-		[i b]
-	} [1N 0] ~!* l &x #@rangef x &n?{%%n 2 /n 2 +*n 3 1} \~>1
+~@maxf @to 1Mj &x #@rangef x &n?{%%n 2 /n 2 +*n 3 1} \~>1
 ```
