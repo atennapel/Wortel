@@ -1,0 +1,23 @@
+; single var assigment
+@var a 10
+@var [a b c] 10
+
+; var declarations
+@vars [a b c]
+; var declaration+initialization
+@vars {
+	a 1
+	b 2
+	[c d f] 3
+}
+
+; single assigment
+:a 10
+:[a b c] 10
+
+; multiple assigments
+@: {
+	a 1
+	b 2
+	[c d f] 3
+}

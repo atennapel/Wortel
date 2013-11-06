@@ -7,9 +7,11 @@
 	TODO:
 		named fns
 		rest arguments
+
+		?mixins
 		?default arguments
 		?macro/aliases
-		mixins
+
 		all/any/none/one
 		allf/anyf/nonef/onef
 		powf
@@ -405,7 +407,7 @@ var Wortel = (function() {
 		this.val = a;
 	};
 	JS.SemiGroup.prototype.compile = function() {
-		return this.val.length == 0? '': ';'+this.val.map(mCompile).join(';')+';';
+		return this.val.length == 0? '': this.val.map(mCompile).join(';');
 	};
 	// Object
 	JS.Object = function(a) {
@@ -605,7 +607,9 @@ var Wortel = (function() {
 	JS.Assigment.prototype.compile = function() {
 		for(var i = 0, a = this.o, l = a.length, r = []; i < l; i += 2) {
 			var k = a[i], v = a[i+1];
-			r.push(k.compile() + '=' + v.compile());
+			if(k instanceof JS.Array)
+				r.push(k.val.map(mCompile).join('=')+'='+v.compile());
+			else r.push(k.compile() + '=' + v.compile());
 		}
 		return r.join(',');
 	};
@@ -1255,7 +1259,7 @@ var Wortel = (function() {
 		'?': function(o) {return new JS.Ternary(o.val)},
 		'@iff': function(o) {return new JS.If(o.val)},
 		'@:': function(o) {return new JS.Assigment(o.val)},
-		'@var': function(o) {
+		'@vars': function(o) {
 			if(o instanceof JS.Object) return new JS.Prefix('var ', new JS.Assigment(o.val));
 			if(o instanceof JS.Array) return new JS.Prefix('var ', new JS.CommaList(o.val));
 		},
@@ -1269,7 +1273,7 @@ var Wortel = (function() {
 				[new JS.Prefix('var ', new JS.Assigment(o.val.slice(0, -1)))].concat(wrap(o.val[o.val.length-1]))
 			), []);
 		},
-		'@v': function(k, v) {return new JS.Prefix('var ', new JS.Assigment([k, v]))},
+		'@var': function(k, v) {return new JS.Prefix('var ', new JS.Assigment([k, v]))},
 		'@new': function(x, a) {return new JS.Prefix('new ', new JS.FnCall(x, wrap(a)))},
 		'@instanceof': function(x, y) {return new JS.BinOp(' instanceof ', x, y)},
 		'@while': function(c, a) {return new JS.While(c, a)},
