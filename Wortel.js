@@ -1356,6 +1356,7 @@ var Wortel = (function() {
 		'@table': function(f, a, b) {return new JS.FnCall('_table', [f, a, b])},
 
 		// JS Keywords
+		'@break': function() {return new JS.Prefix('break', new JS.Empty())},
 		// unary
 		'@return': function(x) {return new JS.Prefix('return ', x)},
 		'@>': function(x) {return new JS.FnCall('_r.push', [x])},

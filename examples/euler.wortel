@@ -5,4 +5,11 @@
 ; Problem 6
 @let {l @to 100 - @sq @sum l @sum !*^@sq l}
 ; Problem 14
-~@maxf @to 1Mj &x #@rangef x &n?{%%n 2 /n 2 +*n 3 1} \~>1
+@let {
+  col @mem &n?{
+    <n 2 1
+    %%n 2 +1 !col /n 2
+    +1 !col +1*n 3
+  }
+  @maxf col @to 1Mj 
+}
