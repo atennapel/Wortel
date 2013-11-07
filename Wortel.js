@@ -10,6 +10,7 @@
 		named fns
 		rest arguments
 		memoize
+		partial application of partial application
 		complex partial application
 
 		?mixins
