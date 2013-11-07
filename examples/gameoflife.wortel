@@ -1,6 +1,16 @@
-; translation of the APL game of life (http://catpad.net/michael/apl/).
 @let {
-  life &m @let {
+	; Mapping over a matrix.
+  life &m ~!* m &[a y] ~!* a &[v x] @let {
+    neigh @sum [
+      @`-x 1 @`-y 1 m  @`x @`-y 1 m  @`+x 1 @`-y 1 m
+      @`-x 1 @`y    m                @`+x 1 @`y    m
+      @`-x 1 @`+y 1 m  @`x @`+y 1 m  @`+x 1 @`+y 1 m
+    ]
+    @+ || = neigh 3 && v = neigh 2
+  }
+
+  ; Translation of the APL game of life (http://catpad.net/michael/apl/).
+  lifeMatrix &m @let {
     ; create functions that work on two matrices
     makemf  &f @[\@mapm @[\@mapm f ^@,] ^@,]
     addm    !makemf ^+
@@ -36,10 +46,13 @@
     !tonum !!orm !!andm m !!eqm neigh !!repm 2 m
                  !!eqm neigh !!repm 3 m
   }
+
   ; testing it out
-  !life [
-    [0 0 0]
-    [1 1 1]
-    [0 0 0]
+  !console.log !lifeMatrix !life [
+    [0 0 0 0 0]
+    [0 0 0 0 0]
+    [0 1 1 1 0]
+    [0 0 0 0 0]
+    [0 0 0 0 0]
   ]
 }

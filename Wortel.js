@@ -1098,6 +1098,9 @@ var Wortel = (function() {
 		'_sortf': new JS.Fn('_sortf', [new JS.Name('f'), new JS.Name('a')], [
 			new JS.Prefix('return ', new JS.MethodCall(new JS.MethodCall(new JS.Array([]), 'concat', [new JS.Name('a')]), 'sort', [new JS.Name('f')]))
 		], true),
+		'_index': new JS.Fn('_index', [new JS.Name('i'), new JS.Name('a')], [
+			new JS.Prefix('return ', new JS.Index(new JS.Name('a'), new JS.FnCall('_mod', [new JS.Name('i'), new JS.Prop(new JS.Name('a'), new JS.Name('length'))])))
+		], true),
 	};
 	function addLibTo(obj) {
 		for(var k in Lib) obj[k] = eval('('+Lib[k].compile()+')');
@@ -1139,6 +1142,7 @@ var Wortel = (function() {
 		'@minl': ['_minl'],
 		'@maxf': ['_maxf'],
 		'@minf': ['_minf'],
+		'@`': ['_mod', '_index'],
 	};
 	var opToLib = {
 		'@%': '_mod',
@@ -1168,6 +1172,7 @@ var Wortel = (function() {
 		'@minl': '_minl',
 		'@maxf': '_maxf',
 		'@minf': '_minf',
+		'@`': '_index',
 	};
 
 	function wrap(a) {return a instanceof JS.Array? a.val: [a]};
@@ -1316,6 +1321,7 @@ var Wortel = (function() {
 		'!/': function(fn, a) {return new JS.MethodCall(a, 'reduce', [fn])},
 		'!-': function(fn, a) {return new JS.MethodCall(a, 'filter', [fn])},
 		'`': function(i, a) {return new JS.Index(a, i)},
+		'@`': function(i, a) {return new JS.FnCall('_index', [i, a])},
 		// ternary
 		'@fold': function(fn, v, a) {return new JS.MethodCall(a, 'reduce', [fn, v])},
 		'@table': function(f, a, b) {return new JS.FnCall('_table', [f, a, b])},
