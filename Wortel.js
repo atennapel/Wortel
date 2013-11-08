@@ -1118,6 +1118,51 @@ var Wortel = (function() {
 				]))
 			], true);
 		})(),
+		'_neq': new JS.ExprFn('_neq', [new JS.Name('a'), new JS.Name('b')],
+			new JS.UnOp('!', new JS.FnCall('_eq', [new JS.Name('a'), new JS.Name('b')])), true),
+		'_eq': (function() {
+			var a = new JS.Name('a'),
+					b = new JS.Name('b'),
+					ak = new JS.Name('ak'),
+					bk = new JS.Name('bk'),
+					l = new JS.Name('l'),
+					i = new JS.Name('i'),
+					tr = new JS.Name('true'),
+					fa = new JS.Name('false'),
+					len = new JS.Name('length');
+			return new JS.Fn('_eq', [a, b], [
+				new JS.If([
+					new JS.BinOp('!=', new JS.Prefix('typeof ', a), new JS.Prefix('typeof ', b)),
+						new JS.Prefix('return ', fa),
+					new JS.BinOp('==', a, new JS.Name('null')),
+						new JS.Prefix('return ', new JS.BinOp('==', b, new JS.Name('null'))),
+					new JS.BinOp('&&', new JS.FnCall('Array.isArray', [a]), new JS.FnCall('Array.isArray', [b])), new JS.Array([
+						new JS.If([new JS.BinOp('!=', new JS.Prop(a, len), new JS.Prop(b, len)), new JS.Prefix('return ', fa)]),
+						new JS.For(new JS.Prefix('var ', new JS.Assigment([i, new JS.Number('0'), l, new JS.Prop(a, len)])),
+										new JS.BinOp('<', i, l), new JS.Suffix('++', i), new JS.Array([
+							new JS.If([
+								new JS.UnOp('!', new JS.FnCall('_eq', [new JS.Index(a, i), new JS.Index(b, i)])),
+									new JS.Prefix('return ', fa)
+							])
+						])),
+						new JS.Prefix('return ', tr)
+					]),
+					new JS.BinOp('==', new JS.Prefix('typeof ', a), new JS.String('object', "'")), new JS.Array([
+						new JS.Prefix('var ', new JS.Assigment([ak, new JS.FnCall('Object.keys', [a]), bk, new JS.FnCall('Object.keys', [b])])),
+						new JS.If([new JS.BinOp('!=', new JS.Prop(ak, len), new JS.Prop(bk, len)), new JS.Prefix('return ', fa)]),
+						new JS.For(new JS.Prefix('var ', new JS.Assigment([i, new JS.Number('0'), l, new JS.Prop(ak, len)])),
+										new JS.BinOp('<', i, l), new JS.Suffix('++', i), new JS.Array([
+							new JS.If([
+								new JS.UnOp('!', new JS.FnCall('_eq', [new JS.Index(a, new JS.Index(ak, i)), new JS.Index(b, new JS.Index(ak, i))])),
+									new JS.Prefix('return ', fa)
+							])
+						])),
+						new JS.Prefix('return ', tr)
+					]),
+					new JS.Prefix('return ', new JS.BinOp('===', a, b))
+				])
+			], true);
+		})(),
 	};
 	function addLibTo(obj) {
 		for(var k in Lib) obj[k] = eval('('+Lib[k].compile()+')');
@@ -1161,6 +1206,8 @@ var Wortel = (function() {
 		'@maxf': ['_maxf'],
 		'@minf': ['_minf'],
 		'@`': ['_mod', '_index'],
+		'@eq': ['_eq'],
+		'@neq': ['_eq', '_neq'],
 	};
 	var opToLib = {
 		'@%': '_mod',
@@ -1192,6 +1239,8 @@ var Wortel = (function() {
 		'@maxf': '_maxf',
 		'@minf': '_minf',
 		'@`': '_index',
+		'@eq': '_eq',
+		'@neq': '_neq',
 	};
 
 	function wrap(a) {return a instanceof JS.Array? a.val: [a]};
@@ -1237,6 +1286,8 @@ var Wortel = (function() {
 		'>=': function(x, y) {return new JS.BinOp('>=', x, y)},
 		'<': function(x, y) {return new JS.BinOp('<', x, y)},
 		'<=': function(x, y) {return new JS.BinOp('<=', x, y)},
+		'@eq': function(a, b) {return new JS.FnCall('_eq', [a, b])},
+		'@neq': function(a, b) {return new JS.FnCall('_neq', [a, b])},
 
 		'||': function(x, y) {return new JS.BinOp('||', x, y)},
 		'&&': function(x, y) {return new JS.BinOp('&&', x, y)},
