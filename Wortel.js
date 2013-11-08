@@ -1,7 +1,7 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.66.9
-	@date: 2013-11-8
+	@version: 0.67.0
+	@date: 2013-11-9
 
 	TODO:
 		write unit tests		
@@ -14,7 +14,7 @@
 */
 
 var Wortel = (function() {
-	var version = '0.66.9';
+	var version = '0.67.0';
 	var _randN = 0;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
@@ -76,7 +76,7 @@ var Wortel = (function() {
 			}
 		for(var i = 0, c; c = r[i], i < r.length; i++)
 			if(c.type == 'symbol') {
-				if(quoteSymbols.indexOf(c.val) != -1 && !(r[i+1].type == 'symbol' && quoteSymbols.indexOf(r[i+1].val) != -1))
+				if(quoteSymbols.indexOf(c.val) != -1 && r[i+1].type == 'symbol' && quoteSymbols.indexOf(r[i+1].val) == -1)
 					r[i+1].quoted = true;
 				else if(groupQuoter.indexOf(c.val) != -1 && r[i+1].type == '(')
 					r[i+1].quoted = true;
