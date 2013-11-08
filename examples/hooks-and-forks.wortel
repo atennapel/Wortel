@@ -1,0 +1,14 @@
+; hooks and forks similar to j
+; monadic hooks with @ and dyadic with @@
+
+; monadic hook (x + (x*x))
+@(+ @sq)
+
+; monadic fork (mean)
+@(@sum / #)
+
+; dyadic hook (x + (y * y))
+@(+ @sq)
+
+; dyadic fork [x+y, x-y, x*y] 
+@(+ >, - , *)

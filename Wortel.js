@@ -1,5 +1,4 @@
-/*
-	Wortel
+/* Wortel
 	@author: Albert ten Napel
 	@version: 0.66.9
 	@date: 2013-11-8
@@ -1504,6 +1503,7 @@ var Wortel = (function() {
 		'@rep': function(n, v) {return new JS.FnCall('_rep', [n, v])},
 		'@each': function(fn, a) {return new JS.MethodCall(a, 'forEach', [fn])},
 		',': function(a, b) {return new JS.MethodCall(a instanceof JS.String || a instanceof JS.Number? new JS.Array([a]): a, 'concat', [b])},
+		'>,': function(a, b) {return new JS.MethodCall(new JS.Array([a]), 'concat', [b])},
 		'@,': function(a, b) {return new JS.Array([a, b])},
 		'!*': function(fn, a) {return new JS.MethodCall(a, 'map', [fn])},
 		'!/': function(fn, a) {return new JS.MethodCall(a, 'reduce', [fn])},
