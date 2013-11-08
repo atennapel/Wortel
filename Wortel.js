@@ -1343,7 +1343,7 @@ var Wortel = (function() {
 				for(var i = a.length-2; i >= 0; i--)
 					cur = new JS.FnCall(a[i], [cur]);
 				return new JS.ExprFn('', [], cur);
-			} else if(l instanceof JS.Group) {
+			} else if(l instanceof JS.Object) {
 				return new JS.FnCall(new JS.ExprFn('', [],
 					[new JS.Prefix('var ', new JS.Assigment([new JS.Name('_r'), new JS.Array([])]))]
 						.concat(l.val).concat(new JS.Name('_r'))), []);
@@ -1636,7 +1636,80 @@ var Wortel = (function() {
 							new JS.Array([new JS.Prefix('var ', new JS.Assigment([arg[1], new JS.Index(val, arg[0])]))].concat(body))
 						])])
 					);
+			} else if(type == 'to') {
+				var nameC = randVar(); 
+				return new JS.For(
+					new JS.Prefix('var ', new JS.Assigment([
+						arg, new JS.Number('1'),
+						nameC, val
+					])),
+					new JS.BinOp('<=', arg, nameC),
+					new JS.Suffix('++', arg),
+					new JS.Array(body)
+				);
+			} else if(type == 'til') {
+				var nameC = randVar(); 
+				return new JS.For(
+					new JS.Prefix('var ', new JS.Assigment([
+						arg, new JS.Number('0'),
+						nameC, val
+					])),
+					new JS.BinOp('<', arg, nameC),
+					new JS.Suffix('++', arg),
+					new JS.Array(body)
+				);
+			} else if(type == 'rangei') {
+				var a = val.val[0];
+				var b = val.val[1];
+				var step = val.val[2] || new JS.Number('1');
+				var stepv = randVar();
+				var end = randVar();
+				return new JS.For(
+					new JS.Prefix('var ', new JS.Assigment([
+						arg, a,
+						stepv, step,
+						end, b
+					])),
+					new JS.BinOp('<=', arg, end),
+					new JS.BinOp('+=', arg, stepv),
+					new JS.Array(body)
+				);
+			} else if(type == 'ranged') {
+				var a = val.val[0];
+				var b = val.val[1];
+				var step = val.val[2] || new JS.Number('1');
+				var stepv = randVar();
+				var end = randVar();
+				return new JS.For(
+					new JS.Prefix('var ', new JS.Assigment([
+						arg, a,
+						stepv, step,
+						end, b
+					])),
+					new JS.BinOp('>=', arg, end),
+					new JS.BinOp('+=', arg, stepv),
+					new JS.Array(body)
+				);
+			} else if(type == 'range') {
+				var a = val.val[0];
+				var b = val.val[1];
+				var step = val.val[2] || new JS.Number('1');
+				var start = randVar();
+				var stepv = randVar();
+				var end = randVar();
+				return new JS.For(
+					new JS.Prefix('var ', new JS.Assigment([
+						arg, a,
+						start, arg,
+						stepv, step,
+						end, b
+					])),
+					new JS.Ternary([new JS.BinOp('<=', start, end), new JS.BinOp('<=', arg, end), new JS.BinOp('>=', arg, end)]),
+					new JS.BinOp('+=', arg, stepv),
+					new JS.Array(body)
+				);
 			}
+			throw 'Unknown @for type: '+type;
 		},
 		'@class': function(name, args, body) {
 			var args = args instanceof JS.Array || args instanceof JS.Group? args.val: [args];
