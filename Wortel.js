@@ -1373,7 +1373,8 @@ var Wortel = (function() {
 					// fork, (a b c) -> x.b(a(x), c(x))
 					for(var i = 1, a = l.val, ln = a.length; i < ln; i += 2)
 						r = toFnCall(a[i], [r, toFnCall(a[i+1], [x])]);
-				}
+				} else if(l.val.length == 1)
+					r = toFnCall(l.val[0], [x, x]);
 				return new JS.ExprFn('', [x], r);
 			}
 		},
