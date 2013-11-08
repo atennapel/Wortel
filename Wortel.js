@@ -1,16 +1,13 @@
 /*
 	Wortel
 	@author: Albert ten Napel
-	@version: 0.66.7
-	@date: 2013-11-7
+	@version: 0.66.8
+	@date: 2013-11-8
 
 	TODO:
 		write unit tests		
 
-		complex partial application
-
 		?mixins
-		?default arguments
 		?macro/aliases
 
 		all/any/none/one
@@ -19,7 +16,7 @@
 */
 
 var Wortel = (function() {
-	var version = '0.66.7';
+	var version = '0.66.8';
 	var _randN = 0;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
@@ -1162,6 +1159,20 @@ var Wortel = (function() {
 				])
 			], true);
 		})(),
+		'_id': new JS.ExprFn('_id', [new JS.Name('x')], new JS.Name('x'), true),
+		'_count': (function() {
+			var f = new JS.Name('f'),
+					a = new JS.Name('a'),
+					i = new JS.Name('i'),
+					n = new JS.Name('n'),
+					l = new JS.Name('l'),
+					zero = new JS.Number('0');
+			return new JS.Fn('_count', [f, a], [
+				new JS.For(new JS.Prefix('var ', new JS.Assigment([i, zero, n, zero, l, new JS.Prop(a, new JS.Name('length'))])),
+					new JS.BinOp('<', i, l), new JS.Suffix('++', i), new JS.If([new JS.FnCall(f, [new JS.Index(a, i)]), new JS.Suffix('++', n)])),
+				new JS.Prefix('return ', n)
+			]);
+		})(),
 	};
 	function addLibTo(obj) {
 		for(var k in Lib) obj[k] = eval('('+Lib[k].compile()+')');
@@ -1207,6 +1218,8 @@ var Wortel = (function() {
 		'@`': ['_mod', '_index'],
 		'@eq': ['_eq'],
 		'@neq': ['_eq', '_neq'],
+		'@id': ['_id'],
+		'@count': ['_count'],
 	};
 	var opToLib = {
 		'@%': '_mod',
@@ -1240,12 +1253,15 @@ var Wortel = (function() {
 		'@`': '_index',
 		'@eq': '_eq',
 		'@neq': '_neq',
+		'@id': '_id',
+		'@count': '_count',
 	};
 
 	function wrap(a) {return a instanceof JS.Array? a.val: [a]};
 	function all(a, f) {for(var i = 0, l = a.length; i < l; i++) if(!f(a[i])) return false; return true};
 	// Operators
 	var operators = {
+		'@id': function(x) {return new JS.FnCall('_id', [x])},
 		// Math
 		// unary
 		'@+': function(x) {return new JS.UnOp('+', x)},
@@ -1270,6 +1286,7 @@ var Wortel = (function() {
 		'@min': function(x, y) {return new JS.FnCall('Math.min', [x, y])},
 		'@maxf': function(f, x) {return new JS.FnCall('_maxf', [f, x])},
 		'@minf': function(f, x) {return new JS.FnCall('_minf', [f, x])},
+		'@count': function(f, x) {return new JS.FnCall('_count', [f, x])},
 
 		// Boolean
 		// unary
@@ -1314,6 +1331,9 @@ var Wortel = (function() {
 				return new JS.ExprFn(args.val[0].val, args.val.slice(1), wrap(body));
 			return new JS.ExprFn('', wrap(args), wrap(body));
 		},
+		':&': function(o) {
+			return operators['&'](o.args[0], o);
+		},
 		'@&': function(args, body) {
 			if(args instanceof JS.Object)
 				return new JS.Fn(args.val[0].val, args.val.slice(1), wrap(body));
@@ -1326,16 +1346,27 @@ var Wortel = (function() {
 			else return new JS.MethodCall(fn, 'apply', [new JS.Name('null'), list]);
 		},
 		'\\': function(bl, arg) {
-			if(bl instanceof JS.Block) {
-				checkLib(bl.val);
-				if(!(arg instanceof JS.Array)) {
-					if(opToLib[bl.val]) return operators['\\'](new JS.Name(opToLib[bl.val]), arg);
-					else {
-						for(var i = 0, n = operators[bl.val].length-1, args = []; i < n; i++) args.push(randVar());
-						return new JS.ExprFn('', args, operators[bl.val].apply(null, bl.reversed? args.concat([arg]): [arg].concat(args)));
+			if(arg instanceof JS.Array) {
+				var vars = arg.val.filter(function(x) {return x instanceof JS.Name && x.val == '.'}).map(randVar);
+				var n = 0;
+				var args = arg.val.map(function(x) {return x instanceof JS.Name && x.val == '.'? vars[n++]: x});
+				if(bl instanceof JS.Block) {
+					if(args.length != operators[bl.val].length)
+						throw 'Invalid length for partial application of '+bl.val+'.';
+					return new JS.ExprFn('', vars, operators[bl.val].apply(null, args));
+				} else return new JS.ExprFn('', vars, new JS.FnCall(bl, args));
+			} else {
+				if(bl instanceof JS.Block) {
+					checkLib(bl.val);
+					if(!(arg instanceof JS.Array)) {
+						if(opToLib[bl.val]) return operators['\\'](new JS.Name(opToLib[bl.val]), arg);
+						else {
+							for(var i = 0, n = operators[bl.val].length-1, args = []; i < n; i++) args.push(randVar());
+							return new JS.ExprFn('', args, operators[bl.val].apply(null, bl.reversed? args.concat([arg]): [arg].concat(args)));
+						}
 					}
-				}
-			} else return new JS.MethodCall(bl, 'bind', [new JS.Name('this'), arg]);
+				} else return new JS.MethodCall(bl, 'bind', [new JS.Name('this'), arg]);
+			}
 		},
 		'\\\\': function(f) {
 			return new JS.ExprFn('', [new JS.Name('x')], operators['\\'](f, new JS.Name('x')));
@@ -1618,7 +1649,11 @@ var Wortel = (function() {
 	
 		// Wortel
 		// unary
-		'~': function(n) {return compilePointerExpr(n.val, null, true)},
+		'~': function(n) {
+			if(n instanceof JS.Array)
+				return new JS.FnCall(new JS.ExprFn('', [], n.val), []);
+			return compilePointerExpr(n.val, null, true);
+		},
 		'#~': function(n) {return compileMathFnRPN(n.val, null, true)},
 		'^': function(bl) {
 			if(bl instanceof JS.Block && bl.quoted) {
