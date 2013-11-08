@@ -7,7 +7,6 @@
 	TODO:
 		write unit tests		
 
-		partial application of partial application
 		complex partial application
 
 		?mixins
@@ -26,7 +25,7 @@ var Wortel = (function() {
 		
 	// Parser
 	var symbols = '~`!@#%^&*-+=|\\:?/><,';
-	var quoteSymbols = ['\\', '^', '%^', ':!'];
+	var quoteSymbols = ['\\', '\\\\', '^', '%^', ':!'];
 	function isSymbol(c) {return symbols.indexOf(c) != -1};
 	var brackets = '()[]{}';
 	function isBracket(c) {return brackets.indexOf(c) != -1};
@@ -1337,6 +1336,9 @@ var Wortel = (function() {
 					}
 				}
 			} else return new JS.MethodCall(bl, 'bind', [new JS.Name('this'), arg]);
+		},
+		'\\\\': function(f) {
+			return new JS.ExprFn('', [new JS.Name('x')], operators['\\'](f, new JS.Name('x')));
 		},
 		// ternary
 		'!!': function(fn, x, y) {return new JS.FnCall(fn, [x, y])},
