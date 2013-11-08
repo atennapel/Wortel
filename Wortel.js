@@ -12,7 +12,6 @@
 
 		all/any/none/one
 		allf/anyf/nonef/onef
-		powf
 */
 
 var Wortel = (function() {
@@ -1173,6 +1172,23 @@ var Wortel = (function() {
 				new JS.Prefix('return ', n)
 			]);
 		})(),
+		'_powf': (function() {
+			var f = new JS.Name('f'),
+					a = new JS.Name('a'),
+					i = new JS.Name('i'),
+					n = new JS.Name('n'),
+					p = new JS.Name('p'),
+					zero = new JS.Number('0');
+			return new JS.Fn('_powf', [f, n, a], [
+				new JS.If([
+					new JS.BinOp('<', n, zero),
+						new JS.For(new JS.Prefix('var ', p), new JS.BinOp('!==', p, a), new JS.Empty(), new JS.Assigment([a, new JS.FnCall(f, [a])])),
+					new JS.For(new JS.Prefix('var ', new JS.Assigment([i, zero])), new JS.BinOp('<', i, n), new JS.Suffix('++', i),
+						new JS.Assigment([a, new JS.FnCall(f, [a])]))
+				]),
+				new JS.Prefix('return ', a)
+			]);
+		})(),
 	};
 	function addLibTo(obj) {
 		for(var k in Lib) obj[k] = eval('('+Lib[k].compile()+')');
@@ -1220,6 +1236,7 @@ var Wortel = (function() {
 		'@neq': ['_eq', '_neq'],
 		'@id': ['_id'],
 		'@count': ['_count'],
+		'!^': ['_powf'],
 	};
 	var opToLib = {
 		'@%': '_mod',
@@ -1255,6 +1272,7 @@ var Wortel = (function() {
 		'@neq': '_neq',
 		'@id': '_id',
 		'@count': '_count',
+		'!^': '_powf',
 	};
 
 	function wrap(a) {return a instanceof JS.Array? a.val: [a]};
@@ -1433,6 +1451,7 @@ var Wortel = (function() {
 		'!*': function(fn, a) {return new JS.MethodCall(a, 'map', [fn])},
 		'!/': function(fn, a) {return new JS.MethodCall(a, 'reduce', [fn])},
 		'!-': function(fn, a) {return new JS.MethodCall(a, 'filter', [fn])},
+		'!^': function(f, n, a) {return new JS.FnCall('_powf', [f, n, a])},
 		'`': function(i, a) {return new JS.Index(a, i)},
 		'@`': function(i, a) {return new JS.FnCall('_index', [i, a])},
 		// ternary
