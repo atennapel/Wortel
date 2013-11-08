@@ -1,7 +1,7 @@
 /*
 	Wortel
 	@author: Albert ten Napel
-	@version: 0.66.8
+	@version: 0.66.9
 	@date: 2013-11-8
 
 	TODO:
@@ -15,13 +15,14 @@
 */
 
 var Wortel = (function() {
-	var version = '0.66.8';
+	var version = '0.66.9';
 	var _randN = 0;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
 	// Parser
 	var symbols = '~`!@#%^&*-+=|\\:?/><,';
 	var quoteSymbols = ['\\', '\\\\', '^', '%^', ':!'];
+	var groupQuoter = ['@', '@@'];
 	function isSymbol(c) {return symbols.indexOf(c) != -1};
 	var brackets = '()[]{}';
 	function isBracket(c) {return brackets.indexOf(c) != -1};
@@ -75,9 +76,13 @@ var Wortel = (function() {
 				r.splice(i, 2, r[i+1]);
 			}
 		for(var i = 0, c; c = r[i], i < r.length; i++)
-			if(c.type == 'symbol' && quoteSymbols.indexOf(c.val) != -1 && r[i+1].type == 'symbol' && quoteSymbols.indexOf(r[i+1].val) == -1)
-				r[i+1].quoted = true;
-
+			if(c.type == 'symbol') {
+				if(quoteSymbols.indexOf(c.val) != -1 && !(r[i+1].type == 'symbol' && quoteSymbols.indexOf(r[i+1].val) != -1))
+					r[i+1].quoted = true;
+				else if(groupQuoter.indexOf(c.val) != -1 && r[i+1].type == '(')
+					r[i+1].quoted = true;
+			}
+	
 		return toAST(groupBrackets(r));
 	};
 
@@ -104,14 +109,19 @@ var Wortel = (function() {
 	};
 
 	function groupBrackets(r) {
-		for(var i = 0, level = 0, ind, c, cb; c = r[i], i < r.length; i++)
+		for(var i = 0, level = 0, ind, c, cb, cq; c = r[i], i < r.length; i++) {
 			if(cb) {
 				if(c.type == cb) level++;
 				else if(c.type == otherBracket(cb) && --level == 0)
-					r.splice(ind, i-ind+1, {type: cb, val: groupBrackets(r.slice(ind+1, i))}),
+					r.splice(ind, i-ind+1, {type: cb, val: groupBrackets(r.slice(ind+1, i).map(function(x) {
+						if(cq && x.type == 'symbol' && groupQuoter.indexOf(x.val) == -1)
+							x.quoted = true;
+						return x;
+					}))}),
 					cb = false, i = ind;
 			} else if('([{'.indexOf(c.type) != -1)
-				cb = c.type, ind = i, level++;
+				cb = c.type, cq = c.quoted, ind = i, level++;
+		}
 		return r;
 	};
 
@@ -1283,6 +1293,13 @@ var Wortel = (function() {
 
 	function wrap(a) {return a instanceof JS.Array? a.val: [a]};
 	function all(a, f) {for(var i = 0, l = a.length; i < l; i++) if(!f(a[i])) return false; return true};
+	function toFnCall(obj, args) {
+		if(obj instanceof JS.Block)
+			return operators[obj.val].apply(null, args);
+		if(obj instanceof JS.String || obj instanceof JS.Number)
+			return obj;
+		return new JS.FnCall(obj, args);
+	};
 	// Operators
 	var operators = {
 		'@id': function(x) {return new JS.FnCall('_id', [x])},
@@ -1347,10 +1364,39 @@ var Wortel = (function() {
 				return new JS.FnCall(new JS.ExprFn('', [],
 					[new JS.Prefix('var ', new JS.Assigment([new JS.Name('_r'), new JS.Array([])]))]
 						.concat(l.val).concat(new JS.Name('_r'))), []);
+			} else if(l instanceof JS.Group) {
+				var x = randVar(), r = toFnCall(l.val[0], [x]);
+				if(l.val.length == 2) {
+					// hook, (a b) -> x.a(x, b(x))
+					var a = l.val[0], b = l.val[1];
+					r = toFnCall(a, [x, toFnCall(b, [x])]);
+				} else if(l.val.length > 2) {
+					// fork, (a b c) -> x.b(a(x), c(x))
+					for(var i = 1, a = l.val, ln = a.length; i < ln; i += 2)
+						r = toFnCall(a[i], [r, toFnCall(a[i+1], [x])]);
+				}
+				return new JS.ExprFn('', [x], r);
+			}
+		},
+		'@@': function(l) {
+			if(l instanceof JS.Group) {
+				var x = randVar(), y = randVar(), r = toFnCall(l.val[0], [x, y]);
+				if(l.val.length == 2) {
+					// hook, (a b) -> x.a(x, b(x))
+					var a = l.val[0], b = l.val[1];
+					r = toFnCall(a, [x, toFnCall(b, [y])]);
+				} else if(l.val.length > 2) {
+					// fork, (a b c) -> x.b(a(x), c(x))
+					for(var i = 1, a = l.val, ln = a.length; i < ln; i += 2)
+						r = toFnCall(a[i], [r, toFnCall(a[i+1], [x, y])]);
+				}
+				return new JS.ExprFn('', [x, y], r);
 			}
 		},
 		// binary
 		'&': function(args, body) {
+			if(args instanceof JS.String)
+				return new JS.RegExp(args, body);
 			if(args instanceof JS.Object)
 				return new JS.ExprFn(args.val[0].val, args.val.slice(1), wrap(body));
 			return new JS.ExprFn('', wrap(args), wrap(body));
@@ -1375,6 +1421,10 @@ var Wortel = (function() {
 				var n = 0;
 				var args = arg.val.map(function(x) {return x instanceof JS.Name && x.val == '.'? vars[n++]: x});
 				if(bl instanceof JS.Block) {
+					if(bl.reversed) {
+						vars.reverse();
+						args.reverse();
+					}
 					if(args.length != operators[bl.val].length)
 						throw 'Invalid length for partial application of '+bl.val+'.';
 					return new JS.ExprFn('', vars, operators[bl.val].apply(null, args));
@@ -1403,7 +1453,6 @@ var Wortel = (function() {
 		// unary
 		'@fromCode': function(n) {return new JS.FnCall('String.fromCharCode', [n])},
 		// binary
-		'@r': function(s, m) {return new JS.RegExp(s, m)},
 		'@join': function(n, a) {return new JS.MethodCall(a, 'join', [n])},
 		'@test': function(n, a) {return new JS.MethodCall(n, 'test', [a])},
 		'@match': function(n, a) {return new JS.MethodCall(a, 'match', [n])},
@@ -1766,6 +1815,7 @@ var Wortel = (function() {
 				}
 			} else if(bl instanceof JS.Name) return new JS.Name('this.'+bl.val);
 			else if(bl instanceof JS.Array) return new JS.Fn('', [], wrap(bl));
+			else if(bl instanceof JS.Number || bl instanceof JS.String) return new JS.ExprFn('', [], bl);
 			return new JS.Empty();
 		},
 		'%^': function(bl) {
