@@ -112,11 +112,12 @@ var Wortel = (function() {
 			if(cb) {
 				if(c.type == cb) level++;
 				else if(c.type == otherBracket(cb) && --level == 0)
-					r.splice(ind, i-ind+1, {type: cb, val: groupBrackets(r.slice(ind+1, i).map(function(x) {
-						if(cq && x.type == 'symbol' && groupQuoter.indexOf(x.val) == -1)
+					r.splice(ind, i-ind+1, {type: cb, val: groupBrackets(r.slice(ind+1, i)).map(function(x) {
+						if(cq && x.type == 'symbol' && groupQuoter.indexOf(x.val) == -1) {
 							x.quoted = true;
+						}
 						return x;
-					}))}),
+					})}),
 					cb = false, i = ind;
 			} else if('([{'.indexOf(c.type) != -1)
 				cb = c.type, cq = c.quoted, ind = i, level++;
@@ -1293,7 +1294,7 @@ var Wortel = (function() {
 	function wrap(a) {return a instanceof JS.Array? a.val: [a]};
 	function all(a, f) {for(var i = 0, l = a.length; i < l; i++) if(!f(a[i])) return false; return true};
 	function toFnCall(obj, args) {
-		if(obj instanceof JS.Block)
+		if(obj instanceof JS.Block && obj.quoted)
 			return operators[obj.val].apply(null, args);
 		if(obj instanceof JS.String || obj instanceof JS.Number)
 			return obj;
