@@ -1310,13 +1310,13 @@ var Wortel = (function() {
 				new JS.Prefix('return ', r)
 			], true);
 		})(),
-		'_upgrade2': (function() {
+		'_upgradeb': (function() {
 			var a = new JS.Name('a'),
 					b = new JS.Name('b'),
 					al = new JS.Name('al'),
 					bl = new JS.Name('bl'),
 					l = new JS.Name('length');
-			return new JS.Fn('_upgrade2', [b, a], [
+			return new JS.Fn('_upgradeb', [b, a], [
 				new JS.Prefix('var ', new JS.Assigment([
 					a, new JS.FnCall('_wrap', [a]),
 					b, new JS.FnCall('_wrap', [b]),
@@ -1328,6 +1328,18 @@ var Wortel = (function() {
 					new JS.BinOp('<', al, bl), new JS.Array([new JS.FnCall('_upgrade', [b, a]), b]),
 					new JS.Array([a, b]),
 				]))
+			], true);
+		})(),
+		'_upgradel': (function() {
+			var a = new JS.Name('a'),
+					x = new JS.Name('x'),
+					n = new JS.Name('n'),
+					l = new JS.Name('length');
+			return new JS.Fn('_upgradel', [a], [
+				new JS.Prefix('var ', new JS.Assigment([
+					n, new JS.FnCall('_maxl', [new JS.MethodCall(a, 'map', [new JS.ExprFn('', [x], new JS.Prop(x, l))])])
+				])),
+				new JS.Prefix('return ', new JS.MethodCall(a, 'map', [new JS.ExprFn('', [x], new JS.FnCall('_rep', [n, x]))]))
 			], true);
 		})(),
 	};
@@ -1386,11 +1398,12 @@ var Wortel = (function() {
 		'@first': ['_first'],
 		'@firstf': ['_firstf'],
 		'@upgrade': ['_upgrade'],
-		'@upgrade2': ['_upgrade2'],
+		'@upgradeb': ['_upgrade', '_upgradeb'],
+		'@upgradel': ['_maxl', '_rep'],
 		'!><': ['_mapm'],
 		'!<<': ['_mapm', '_upgrade'],
 		'!>>': ['_mapm', '_upgrade'],
-		'!<>': ['_mapm', '_upgrade', '_wrap', '_upgrade2'],
+		'!<>': ['_mapm', '_upgrade', '_wrap', '_upgradeb'],
 	};
 	var opToLib = {
 		'@%': '_mod',
@@ -1435,7 +1448,8 @@ var Wortel = (function() {
 		'@first': '_first',
 		'@firstf': '_firstf',
 		'@upgrade': '_upgrade',
-		'@upgrade2': '_upgrade2',
+		'@upgradeb': '_upgradeb',
+		'@upgradel': '_upgradel',
 	};
 
 	function wrap(a) {return a instanceof JS.Array? a.val: [a]};
@@ -1632,7 +1646,8 @@ var Wortel = (function() {
 		'@firstf': function(f, a) {return new JS.FnCall('_firstf', [f, a])},
 
 		'@upgrade': function(a, b) {return new JS.FnCall('_upgrade', [a, b])},
-		'@upgrade2': function(a, b) {return new JS.FnCall('_upgrade2', [a, b])},
+		'@upgradeb': function(a, b) {return new JS.FnCall('_upgradeb', [a, b])},
+		'@upgradel': function(a) {return new JS.FnCall('_upgradel', [a])},
 
 		'@uniq': function(n) {return new JS.FnCall('_uniq', [n])},
 		'@mem': function(f) {return new JS.FnCall('_mem', [f])},
@@ -1670,7 +1685,7 @@ var Wortel = (function() {
 		'!><': function(f, a, b) {return new JS.FnCall('_mapm', [f, new JS.Array([a, b])])},	
 		'!<<': function(f, a, b) {return new JS.FnCall('_mapm', [f, new JS.Array([new JS.FnCall('_upgrade', [b, a]), b])])},	
 		'!>>': function(f, a, b) {return new JS.FnCall('_mapm', [f, new JS.Array([a, new JS.FnCall('_upgrade', [a, b])])])},
-		'!<>': function(f, a, b) {return new JS.FnCall('_mapm', [f, new JS.FnCall('_upgrade2', [a, b])])},
+		'!<>': function(f, a, b) {return new JS.FnCall('_mapm', [f, new JS.FnCall('_upgradeb', [a, b])])},
 
 		'`': function(i, a) {return new JS.Index(a, i)},
 		'@`': function(i, a) {return new JS.FnCall('_index', [i, a])},
