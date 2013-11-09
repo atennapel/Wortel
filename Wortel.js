@@ -1288,6 +1288,48 @@ var Wortel = (function() {
 				new JS.Prefix('return ', new JS.Name('false'))
 			], true);
 		})(),
+		'_upgrade': (function() {
+			var a = new JS.Name('a'),
+					b = new JS.Name('b'),
+					i = new JS.Name('i'),
+					l = new JS.Name('l'),
+					l2 = new JS.Name('l2'),
+					r = new JS.Name('r'),
+					c = new JS.Name('c');
+			return new JS.Fn('_upgrade', [b, a], [
+				new JS.For(new JS.Prefix('var ', new JS.Assigment([
+					i, new JS.Number('0'),
+					l, new JS.Prop(b, new JS.Name('length')),
+					l2, new JS.Prop(a, new JS.Name('length')),
+					r, new JS.Array([]),
+					c, new JS.FnCall('Array.isArray', [a])
+				])),
+					new JS.BinOp('<', i, l), new JS.Suffix('++', i), new JS.Array([
+						new JS.FnCall('r.push', [new JS.Ternary([c, new JS.Index(a, new JS.BinOp('%', i, l2)), a])])
+				])),
+				new JS.Prefix('return ', r)
+			], true);
+		})(),
+		'_upgrade2': (function() {
+			var a = new JS.Name('a'),
+					b = new JS.Name('b'),
+					al = new JS.Name('al'),
+					bl = new JS.Name('bl'),
+					l = new JS.Name('length');
+			return new JS.Fn('_upgrade2', [b, a], [
+				new JS.Prefix('var ', new JS.Assigment([
+					a, new JS.FnCall('_wrap', [a]),
+					b, new JS.FnCall('_wrap', [b]),
+					al, new JS.Prop(a, l),
+					bl, new JS.Prop(b, l)
+				])),
+				new JS.Prefix('return ', new JS.Ternary([
+					new JS.BinOp('>', al, bl), new JS.Array([a, new JS.FnCall('_upgrade', [a, b])]),
+					new JS.BinOp('<', al, bl), new JS.Array([new JS.FnCall('_upgrade', [b, a]), b]),
+					new JS.Array([a, b]),
+				]))
+			], true);
+		})(),
 	};
 	function addLibTo(obj) {
 		for(var k in Lib) obj[k] = eval('('+Lib[k].compile()+')');
@@ -1343,6 +1385,12 @@ var Wortel = (function() {
 		'@one': ['_one'],
 		'@first': ['_first'],
 		'@firstf': ['_firstf'],
+		'@upgrade': ['_upgrade'],
+		'@upgrade2': ['_upgrade2'],
+		'!><': ['_mapm'],
+		'!<<': ['_mapm', '_upgrade'],
+		'!>>': ['_mapm', '_upgrade'],
+		'!<>': ['_mapm', '_upgrade', '_wrap', '_upgrade2'],
 	};
 	var opToLib = {
 		'@%': '_mod',
@@ -1386,6 +1434,8 @@ var Wortel = (function() {
 		'@one': '_one',
 		'@first': '_first',
 		'@firstf': '_firstf',
+		'@upgrade': '_upgrade',
+		'@upgrade2': '_upgrade2',
 	};
 
 	function wrap(a) {return a instanceof JS.Array? a.val: [a]};
@@ -1395,7 +1445,7 @@ var Wortel = (function() {
 			if(obj.quoted)
 				return new JS.Block(obj.val, args, false, obj.reversed);
 			else return new JS.FnCall(obj, args);
-		} else if(obj instanceof JS.Name)
+		} else if(obj instanceof JS.Name || obj instanceof JS.Group)
 			return new JS.FnCall(obj, args);
 		return obj;
 	};
@@ -1420,6 +1470,7 @@ var Wortel = (function() {
 		'/': function(x, y) {return new JS.BinOp('/', x, y)},
 		'%': function(x, y) {return new JS.BinOp('%', x, y)},
 		'%%': function(x, y) {return new JS.BinOp('==', new JS.BinOp('%', x, y), new JS.Number(0))},
+		'!%%': function(x, y) {return new JS.BinOp('!=', new JS.BinOp('%', x, y), new JS.Number(0))},
 		'@%': function(x, y) {return new JS.FnCall('_mod', [x, y])},
 		'@^': function(x, y) {return new JS.FnCall('Math.pow', [x, y])},
 		'@max': function(x, y) {return new JS.FnCall('Math.max', [x, y])},
@@ -1580,6 +1631,9 @@ var Wortel = (function() {
 		'@first': function(f, a) {return new JS.FnCall('_first', [f, a])},
 		'@firstf': function(f, a) {return new JS.FnCall('_firstf', [f, a])},
 
+		'@upgrade': function(a, b) {return new JS.FnCall('_upgrade', [a, b])},
+		'@upgrade2': function(a, b) {return new JS.FnCall('_upgrade2', [a, b])},
+
 		'@uniq': function(n) {return new JS.FnCall('_uniq', [n])},
 		'@mem': function(f) {return new JS.FnCall('_mem', [f])},
 		'@flat': function(n) {return new JS.FnCall('_flat', [n])},
@@ -1612,6 +1666,12 @@ var Wortel = (function() {
 		'!/': function(fn, a) {return new JS.MethodCall(a, 'reduce', [fn])},
 		'!-': function(fn, a) {return new JS.MethodCall(a, 'filter', [fn])},
 		'!^': function(f, n, a) {return new JS.FnCall('_powf', [f, n, a])},
+
+		'!><': function(f, a, b) {return new JS.FnCall('_mapm', [f, new JS.Array([a, b])])},	
+		'!<<': function(f, a, b) {return new JS.FnCall('_mapm', [f, new JS.Array([new JS.FnCall('_upgrade', [b, a]), b])])},	
+		'!>>': function(f, a, b) {return new JS.FnCall('_mapm', [f, new JS.Array([a, new JS.FnCall('_upgrade', [a, b])])])},
+		'!<>': function(f, a, b) {return new JS.FnCall('_mapm', [f, new JS.FnCall('_upgrade2', [a, b])])},
+
 		'`': function(i, a) {return new JS.Index(a, i)},
 		'@`': function(i, a) {return new JS.FnCall('_index', [i, a])},
 		// ternary
