@@ -8,9 +8,6 @@
 
 		?mixins
 		?macro/aliases
-
-		all/any/none/one
-		allf/anyf/nonef/onef
 */
 
 var Wortel = (function() {
@@ -1205,6 +1202,92 @@ var Wortel = (function() {
 				new JS.Index(new JS.Name('o'), new JS.Name('k'))
 			)])
 		, true),
+		'_all': (function() {
+			var f = new JS.Name('f'),
+					a = new JS.Name('a'),
+					i = new JS.Name('i'),
+					l = new JS.Name('l');
+			return new JS.Fn('_all', [f, a], [
+				new JS.For(new JS.Prefix('var ', new JS.Assigment([i, new JS.Number('0'), l, new JS.Prop(a, new JS.Name('length'))])),
+					new JS.BinOp('<', i, l), new JS.Suffix('++', i), new JS.Array([
+					new JS.If([new JS.UnOp('!', new JS.FnCall(f, [new JS.Index(a, i)])), new JS.Prefix('return ', new JS.Name('false'))])
+				])),
+				new JS.Prefix('return ', new JS.Name('true'))
+			], true);
+		})(),
+		'_any': (function() {
+			var f = new JS.Name('f'),
+					a = new JS.Name('a'),
+					i = new JS.Name('i'),
+					l = new JS.Name('l');
+			return new JS.Fn('_any', [f, a], [
+				new JS.For(new JS.Prefix('var ', new JS.Assigment([i, new JS.Number('0'), l, new JS.Prop(a, new JS.Name('length'))])),
+					new JS.BinOp('<', i, l), new JS.Suffix('++', i), new JS.Array([
+					new JS.If([new JS.FnCall(f, [new JS.Index(a, i)]), new JS.Prefix('return ', new JS.Name('true'))])
+				])),
+				new JS.Prefix('return ', new JS.Name('false'))
+			], true);
+		})(),
+		'_none': (function() {
+			var f = new JS.Name('f'),
+					a = new JS.Name('a'),
+					i = new JS.Name('i'),
+					l = new JS.Name('l');
+			return new JS.Fn('_none', [f, a], [
+				new JS.For(new JS.Prefix('var ', new JS.Assigment([i, new JS.Number('0'), l, new JS.Prop(a, new JS.Name('length'))])),
+					new JS.BinOp('<', i, l), new JS.Suffix('++', i), new JS.Array([
+					new JS.If([new JS.FnCall(f, [new JS.Index(a, i)]), new JS.Prefix('return ', new JS.Name('false'))])
+				])),
+				new JS.Prefix('return ', new JS.Name('true'))
+			], true);
+		})(),
+		'_one': (function() {
+			var f = new JS.Name('f'),
+					a = new JS.Name('a'),
+					i = new JS.Name('i'),
+					n = new JS.Name('n'),
+					l = new JS.Name('l');
+			return new JS.Fn('_one', [f, a], [
+				new JS.For(new JS.Prefix('var ', new JS.Assigment([
+					i, new JS.Number('0'),
+					n, new JS.Number('0'),
+					l, new JS.Prop(a, new JS.Name('length'))
+				])),
+					new JS.BinOp('<', i, l), new JS.Suffix('++', i), new JS.Array([
+					new JS.If([new JS.BinOp('&&', new JS.FnCall(f, [new JS.Index(a, i)]), new JS.BinOp('>', new JS.Prefix('++', n), new JS.Number('1'))),
+						new JS.Prefix('return ', new JS.Name('false'))])
+				])),
+				new JS.Prefix('return ', new JS.BinOp('!=', n, new JS.Number('0')))
+			], true);
+		})(),
+		'_first': (function() {
+			var f = new JS.Name('f'),
+					a = new JS.Name('a'),
+					i = new JS.Name('i'),
+					l = new JS.Name('l');
+			return new JS.Fn('_first', [f, a], [
+				new JS.For(new JS.Prefix('var ', new JS.Assigment([i, new JS.Number('0'), l, new JS.Prop(a, new JS.Name('length'))])),
+					new JS.BinOp('<', i, l), new JS.Suffix('++', i), new JS.Array([
+					new JS.If([new JS.FnCall(f, [new JS.Index(a, i)]), new JS.Prefix('return ', new JS.Index(a, i))])
+				])),
+				new JS.Prefix('return ', new JS.Name('false'))
+			], true);
+		})(),
+		'_firstf': (function() {
+			var f = new JS.Name('f'),
+					x = new JS.Name('x'),
+					i = new JS.Name('i'),
+					c = new JS.Name('c'),
+					l = new JS.Name('l');
+			return new JS.Fn('_firstf', [f, x], [
+				new JS.For(new JS.Prefix('var ', new JS.Assigment([i, new JS.Number('0'), l, new JS.Prop(f, new JS.Name('length'))])),
+					new JS.BinOp('<', i, l), new JS.Suffix('++', i), new JS.Array([
+					new JS.Prefix('var ', new JS.Assigment([c, new JS.FnCall(new JS.Index(f, i), [x])])),
+					new JS.If([c, new JS.Prefix('return ', c)])
+				])),
+				new JS.Prefix('return ', new JS.Name('false'))
+			], true);
+		})(),
 	};
 	function addLibTo(obj) {
 		for(var k in Lib) obj[k] = eval('('+Lib[k].compile()+')');
@@ -1254,6 +1337,12 @@ var Wortel = (function() {
 		'@count': ['_count'],
 		'!^': ['_powf'],
 		',': ['_wrap'],
+		'@all': ['_all'],
+		'@any': ['_any'],
+		'@none': ['_none'],
+		'@one': ['_one'],
+		'@first': ['_first'],
+		'@firstf': ['_firstf'],
 	};
 	var opToLib = {
 		'@%': '_mod',
@@ -1291,6 +1380,12 @@ var Wortel = (function() {
 		'@count': '_count',
 		'!^': '_powf',
 		'@vals': '_vals',
+		'@all': '_all',
+		'@any': '_any',
+		'@none': '_none',
+		'@one': '_one',
+		'@first': '_first',
+		'@firstf': '_firstf',
 	};
 
 	function wrap(a) {return a instanceof JS.Array? a.val: [a]};
@@ -1477,6 +1572,13 @@ var Wortel = (function() {
 		'@sortf': function(f, n) {return new JS.FnCall('_sortf', [f, n])},
 		'@keys': function(o) {return new JS.FnCall('Object.keys', [o])},
 		'@vals': function(o) {return new JS.FnCall('_vals', [o])},
+
+		'@all': function(f, a) {return new JS.FnCall('_all', [f, a])},
+		'@any': function(f, a) {return new JS.FnCall('_any', [f, a])},
+		'@none': function(f, a) {return new JS.FnCall('_none', [f, a])},
+		'@one': function(f, a) {return new JS.FnCall('_one', [f, a])},
+		'@first': function(f, a) {return new JS.FnCall('_first', [f, a])},
+		'@firstf': function(f, a) {return new JS.FnCall('_firstf', [f, a])},
 
 		'@uniq': function(n) {return new JS.FnCall('_uniq', [n])},
 		'@mem': function(f) {return new JS.FnCall('_mem', [f])},
