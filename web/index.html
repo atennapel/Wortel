@@ -17,7 +17,9 @@
 					@or [=@typeof o 'number' =@typeof o 'boolean' =@typeof o 'undefined' == o .]
 						+'' o
 					=@typeof o 'string'
-						++ '"' o '"' 
+						++ '"' o '"'
+					=@typeof o 'function'
+						+'' o
 					!Array.isArray o
 						"[{@join ' ' !*show o}]"
 					@let {

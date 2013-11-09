@@ -1,6 +1,6 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.67.0
+	@version: 0.67.1
 	@date: 2013-11-9
 
 	TODO:
@@ -11,13 +11,13 @@
 */
 
 var Wortel = (function() {
-	var version = '0.67.0';
+	var version = '0.67.1';
 	var _randN = 0;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
 	// Parser
 	var symbols = '~`!@#%^&*-+=|\\:?/><,';
-	var quoteSymbols = ['\\', '\\\\', '^', '%^', ':!'];
+	var quoteSymbols = ['\\', '\\\\', '^', '%^'];
 	var groupQuoter = ['@', '@@'];
 	function isSymbol(c) {return symbols.indexOf(c) != -1};
 	var brackets = '()[]{}';
@@ -1635,7 +1635,18 @@ var Wortel = (function() {
 		// binary
 		'@if': function(c, b) {return new JS.If([c, b])},
 		':': function(k, v) {return new JS.Assigment([k, v])},
-		':!': function(o, n, v) {return new JS.Assigment([n, operators[o.val](n, v)])},
+		':!': function(o) {
+			if(o instanceof JS.Block) {
+				if(o.val == '!')
+					return new JS.Assigment([o.args[1], o]);
+				if(o.val == '@!') {
+					if(o.args[1] instanceof JS.Array)
+						return new JS.Assigment([o.args[1].val[0], o]);
+					return new JS.Assigment([o.args[0], o]);
+				}
+				return new JS.Assigment([o.args[0], o]);
+			}
+		},
 		'@let': function(o) {
 			return new JS.FnCall(new JS.ExprFn('', [],
 				[new JS.Prefix('var ', new JS.Assigment(o.val.slice(0, -1)))].concat(wrap(o.val[o.val.length-1]))
