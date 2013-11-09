@@ -17,7 +17,7 @@ var Wortel = (function() {
 		
 	// Parser
 	var symbols = '~`!@#%^&*-+=|\\:?/><,';
-	var quoteSymbols = ['\\', '\\\\', '^', '%^', '*^'];
+	var quoteSymbols = ['\\', '\\\\', '^', '%^', '*^', '/^', '+^'];
 	var groupQuoter = ['@', '@@'];
 	function isSymbol(c) {return symbols.indexOf(c) != -1};
 	var brackets = '()[]{}';
@@ -1456,6 +1456,7 @@ var Wortel = (function() {
 	function all(a, f) {for(var i = 0, l = a.length; i < l; i++) if(!f(a[i])) return false; return true};
 	function toFnCall(obj, args) {
 		if(obj instanceof JS.Block) {
+			checkLib(obj);
 			if(obj.quoted)
 				return new JS.Block(obj.val, args, false, obj.reversed);
 			else return new JS.FnCall(obj, args);
@@ -2006,7 +2007,7 @@ var Wortel = (function() {
 			else if(bl instanceof JS.Number || bl instanceof JS.String) return new JS.ExprFn('', [], bl);
 			return new JS.Empty();
 		},
-		'*^': function(bl) {
+		'+^': function(bl) {
 			var v = randVar();
 			return new JS.ExprFn('', [new JS.Block('~', [v])], toFnCall(bl, [v]));
 		},
@@ -2019,6 +2020,17 @@ var Wortel = (function() {
 			} else {
 				return new JS.ExprFn('', [id], new JS.FnCall(bl, [id, id]));
 			}
+		},
+		'/^': function(bl) {
+			var arr = randVar();
+			var a = randVar();
+			var b = randVar();
+			return new JS.ExprFn('', [arr], new JS.MethodCall(arr, 'reduce', [new JS.ExprFn('', [a, b], toFnCall(bl, [a, b]))]));
+		},
+		'*^': function(bl) {
+			var arr = randVar();
+			var a = randVar();
+			return new JS.ExprFn('', [arr], new JS.MethodCall(arr, 'map', [new JS.ExprFn('', [a], toFnCall(bl, [a]))]));
 		},
 		// binary
 		'!#~': function(n, a) {
