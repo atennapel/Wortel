@@ -8,7 +8,7 @@
 @(@sum / #)
 
 ; dyadic hook (x + (y * y))
-@(+ @sq)
+@@(+ @sq)
 
 ; dyadic fork [x+y, x-y, x*y] 
-@(+ >, - , *)
+@@(+ , - , *)

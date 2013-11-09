@@ -387,7 +387,8 @@ var Wortel = (function() {
 	};
 	JS.Block.prototype.compile = function() {
 		checkLib(this.val);
-		return operators[this.val].apply(null, this.args).compile();
+		var args = this.reversed? [].concat(this.args).reverse(): this.args;
+		return operators[this.val].apply(null, args).compile();
 	};
 	// Array
 	JS.Array = function(a) {
@@ -1252,6 +1253,7 @@ var Wortel = (function() {
 		'@id': ['_id'],
 		'@count': ['_count'],
 		'!^': ['_powf'],
+		',': ['_wrap'],
 	};
 	var opToLib = {
 		'@%': '_mod',
@@ -1294,11 +1296,13 @@ var Wortel = (function() {
 	function wrap(a) {return a instanceof JS.Array? a.val: [a]};
 	function all(a, f) {for(var i = 0, l = a.length; i < l; i++) if(!f(a[i])) return false; return true};
 	function toFnCall(obj, args) {
-		if(obj instanceof JS.Block && obj.quoted)
-			return operators[obj.val].apply(null, args);
-		if(obj instanceof JS.String || obj instanceof JS.Number)
-			return obj;
-		return new JS.FnCall(obj, args);
+		if(obj instanceof JS.Block) {
+			if(obj.quoted)
+				return new JS.Block(obj.val, args, false, obj.reversed);
+			else return new JS.FnCall(obj, args);
+		} else if(obj instanceof JS.Name)
+			return new JS.FnCall(obj, args);
+		return obj;
 	};
 	// Operators
 	var operators = {
@@ -1422,13 +1426,9 @@ var Wortel = (function() {
 				var n = 0;
 				var args = arg.val.map(function(x) {return x instanceof JS.Name && x.val == '.'? vars[n++]: x});
 				if(bl instanceof JS.Block) {
-					if(bl.reversed) {
-						vars.reverse();
-						args.reverse();
-					}
 					if(args.length != operators[bl.val].length)
 						throw 'Invalid length for partial application of '+bl.val+'.';
-					return new JS.ExprFn('', vars, operators[bl.val].apply(null, args));
+					return new JS.ExprFn('', vars, new JS.Block(bl.val, args, false, bl.reversed));
 				} else return new JS.ExprFn('', vars, new JS.FnCall(bl, args));
 			} else {
 				if(bl instanceof JS.Block) {
@@ -1437,7 +1437,7 @@ var Wortel = (function() {
 						if(opToLib[bl.val]) return operators['\\'](new JS.Name(opToLib[bl.val]), arg);
 						else {
 							for(var i = 0, n = operators[bl.val].length-1, args = []; i < n; i++) args.push(randVar());
-							return new JS.ExprFn('', args, operators[bl.val].apply(null, bl.reversed? args.concat([arg]): [arg].concat(args)));
+							return new JS.ExprFn('', args, new JS.Block(bl.val, [arg].concat(args), false, bl.reversed));
 						}
 					}
 				} else return new JS.MethodCall(bl, 'bind', [new JS.Name('this'), arg]);
@@ -1504,8 +1504,7 @@ var Wortel = (function() {
 		'@part': function(n, a) {return new JS.FnCall('_part', [n, a])},
 		'@rep': function(n, v) {return new JS.FnCall('_rep', [n, v])},
 		'@each': function(fn, a) {return new JS.MethodCall(a, 'forEach', [fn])},
-		',': function(a, b) {return new JS.MethodCall(a instanceof JS.String || a instanceof JS.Number? new JS.Array([a]): a, 'concat', [b])},
-		'>,': function(a, b) {return new JS.MethodCall(new JS.Array([a]), 'concat', [b])},
+		',': function(a, b) {return new JS.MethodCall(new JS.FnCall('_wrap', [a]), 'concat', [b])},
 		'@,': function(a, b) {return new JS.Array([a, b])},
 		'!*': function(fn, a) {return new JS.MethodCall(a, 'map', [fn])},
 		'!/': function(fn, a) {return new JS.MethodCall(a, 'reduce', [fn])},
@@ -1812,8 +1811,7 @@ var Wortel = (function() {
 				if(opToLib[bl.val]) return new JS.Name(opToLib[bl.val]);
 				else {
 					for(var i = 0, n = operators[bl.val].length, args = []; i < n; i++) args.push(randVar());
-					if(!bl.reversed) return new JS.ExprFn('', args, operators[bl.val].apply(null, args));
-					else return new JS.ExprFn('', args, operators[bl.val].apply(null, [].concat(args).reverse()));
+					return new JS.ExprFn('', args, new JS.Block(bl.val, args, false, bl.reversed));
 				}
 			} else if(bl instanceof JS.Name) return new JS.Name('this.'+bl.val);
 			else if(bl instanceof JS.Array) return new JS.Fn('', [], wrap(bl));
