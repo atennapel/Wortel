@@ -1,6 +1,6 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.67.1
+	@version: 0.67.2
 	@date: 2013-11-9
 
 	TODO:
@@ -11,13 +11,13 @@
 */
 
 var Wortel = (function() {
-	var version = '0.67.1';
+	var version = '0.67.2';
 	var _randN = 0;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
 	// Parser
 	var symbols = '~`!@#%^&*-+=|\\:?/><,';
-	var quoteSymbols = ['\\', '\\\\', '^', '%^'];
+	var quoteSymbols = ['\\', '\\\\', '^', '%^', '*^'];
 	var groupQuoter = ['@', '@@'];
 	function isSymbol(c) {return symbols.indexOf(c) != -1};
 	var brackets = '()[]{}';
@@ -2005,6 +2005,10 @@ var Wortel = (function() {
 			else if(bl instanceof JS.Array) return new JS.Fn('', [], wrap(bl));
 			else if(bl instanceof JS.Number || bl instanceof JS.String) return new JS.ExprFn('', [], bl);
 			return new JS.Empty();
+		},
+		'*^': function(bl) {
+			var v = randVar();
+			return new JS.ExprFn('', [new JS.Block('~', [v])], toFnCall(bl, [v]));
 		},
 		'%^': function(bl) {
 			var id = randVar();
