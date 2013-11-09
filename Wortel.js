@@ -134,7 +134,7 @@ var Wortel = (function() {
 				})); else {
 					var n = operators[c.val].length,
 							args = n? r.splice(-n): [];
-					if(!c.reversed) args.reverse();
+					args.reverse();
 					r.push(convertToken({
 						type: 'block',
 						val: c.val,
@@ -1564,7 +1564,7 @@ var Wortel = (function() {
 		'@!': function(fn, list) {
 			if(list instanceof JS.Array)
 				return new JS.FnCall(fn, list.val);
-			else return new JS.MethodCall(fn, 'apply', [new JS.Name('null'), list]);
+			else return new JS.MethodCall(fn, 'apply', [new JS.Name('this'), list]);
 		},
 		'\\': function(bl, arg) {
 			if(arg instanceof JS.Array) {
