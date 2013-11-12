@@ -1,17 +1,11 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.67.2
-	@date: 2013-11-9
-
-	TODO:
-		write unit tests		
-
-		?mixins
-		?macro/aliases
+	@version: 0.67.3
+	@date: 2013-11-12
 */
 
 var Wortel = (function() {
-	var version = '0.67.2';
+	var version = '0.67.3';
 	var _randN = 0;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
@@ -173,12 +167,21 @@ var Wortel = (function() {
 	function compile(s, sub) {return toJS(parse(s), sub)};
 
 	// MathFn and Pointer Expr
+	function dup(vars, stack, fn) {
+		var last = stack[stack.length-1];
+		if(fn && !(last instanceof JS.Name || last instanceof JS.Number)) {
+			var v = randVar();
+			vars.push(v, stack.pop());
+			stack.push(v, v);
+		} else stack.push(last);
+	};
 	function compilePointerExpr(expr, inp, fn, st) {
 		var expr = expr.replace(/\_|\s/g, '');
 		var inp = inp || [], x = inp[0] || new JS.Name('x'),
 							y = inp[1] || new JS.Name('y'), z = inp[2] || new JS.Name('z');
 		var stack = st? inp: inp.length > 3? [].concat(inp).reverse(): [z, y, x];
-		var a = expr.match(/\$[0-9a-zA-Z\.]+\$|k[0-9]+|[0-9]+\.[0-9]+|[0-9]+|[a-zA-Z]/g);
+		var vars = [];
+		var a = expr.match(/\$[0-9a-zA-Z\.]+\$|k[0-9]+|k[A-Za-z]|[0-9]+\.[0-9]+|[0-9]+|[a-zA-Z]/g);
 		for(var i = 0, l = a.length, t; i < l; i++) {
 			var c = a[i], n = +c;
 			if(c[0] == '$') compileMathFnRPN(c.slice(1, -1), stack, false, true);
@@ -186,7 +189,7 @@ var Wortel = (function() {
 			else if(c == 'a') addLib('_sum'), stack.push(new JS.FnCall('_sum', [stack.pop()]));
 			else if(c == 'b') addLib('_prod'), stack.push(new JS.FnCall('_prod', [stack.pop()]));
 			else if(c == 'c') stack.push(new JS.Prop(stack.pop(), new JS.Name('length')));
-			else if(c == 'd') stack.push(stack[stack.length-1]);
+			else if(c == 'd') dup(vars, stack, fn);
 			else if(c == 'e') ;
 			else if(c == 'f') addLib('_flat'), stack.push(new JS.FnCall('_flat', [stack.pop()]));
 			else if(c == 'g') ;
@@ -236,9 +239,11 @@ var Wortel = (function() {
 			else if(c == 'Y') stack.push(y);
 			else if(c == 'Z') stack.push(z);
 		}
-		return !fn? stack[stack.length-1]: new JS.ExprFn('', [new JS.Name('x'), new JS.Name('y'), new JS.Name('z')], stack[stack.length-1]);
+		return !fn? stack[stack.length-1]: new JS.ExprFn('', [new JS.Name('x'), new JS.Name('y'), new JS.Name('z')],
+			(vars.length == 0? vars: [new JS.Prefix('var ', new JS.Assigment(vars))]).concat(stack[stack.length-1]));
 	};
 
+	var libAdded = false;
 	function compileNumber(val) {
 		var str = val.replace(/\$|\_/g, '');
 		if(/^(0x[0-9af]+|0[0-7]+)$/i.test(str)) return str;
@@ -247,21 +252,31 @@ var Wortel = (function() {
 			return ''+parseInt(str.slice(f.length), f.slice(0, -1));
 		}
 		if(/^[0-9]*\.[0-9]+$|^[0-9]+$/.test(str)) return str;
-		return compileMathFnRPN(val).compile();
+
+		var window = window || false, global = global || false;
+		if(!libAdded) {
+			if(window)
+				libAdded = true, addLibTo(window);
+			else if(global)
+				libAdded = true, addLibTo(global);
+			else return (new JS.FnCall(compileMathFnRPN(val, false, true), [])).compile();
+		}
+		return eval((new JS.FnCall(compileMathFnRPN(val, false, true), [])).compile());
 	};
 	function compileMathFnRPN(expr, inp, fn, st) {
 		var expr = expr.replace(/\$|\_|\s/g, '');
 		var inp = inp || [], x = inp[0] || new JS.Name('x'),
 							y = inp[1] || new JS.Name('y'), z = inp[2] || new JS.Name('z');
 		var stack = st? inp: inp.length > 3? [].concat(inp).reverse(): [z, y, x];
-		var a = expr.match(/k[0-9]+|[0-9]+\.[0-9]+|[0-9]+|[a-zA-Z]/g);
+		var vars = [];
+		var a = expr.match(/k[0-9]+|k[A-Za-z]|[0-9]+\.[0-9]+|[0-9]+|[a-zA-Z]/g);
 		for(var i = 0, l = a.length, t; i < l; i++) {
 			var c = a[i], n = +c;
 			if(!isNaN(n)) stack.push(new JS.Number(n));
 			else if(c == 'a') t = stack.pop(), stack.push(new JS.BinOp('+', stack.pop(), t));
 			else if(c == 'b') t = stack.pop(), stack.push(new JS.BinOp('-', stack.pop(), t));
 			else if(c == 'c') stack.push(new JS.FnCall('Math.ceiling', [stack.pop()]));
-			else if(c == 'd') stack.push(stack[stack.length-1]);
+			else if(c == 'd') dup(vars, stack, fn);
 			else if(c == 'e') t = stack.pop(), stack.push(new JS.BinOp('*', stack.pop(), new JS.FnCall('Math.pow', [new JS.Number('10'), t])));
 			else if(c == 'f') stack.push(new JS.FnCall('Math.floor', [stack.pop()]));
 			else if(c == 'g') t = stack.pop(), stack.push(new JS.BinOp('>', stack.pop(), t));
@@ -311,7 +326,8 @@ var Wortel = (function() {
 			else if(c == 'Y') stack.push(y);
 			else if(c == 'Z') stack.push(z);
 		}
-		return !fn? stack[stack.length-1]: new JS.ExprFn('', [new JS.Name('x'), new JS.Name('y'), new JS.Name('z')], stack[stack.length-1]);
+		return !fn? stack[stack.length-1]: new JS.ExprFn('', [new JS.Name('x'), new JS.Name('y'), new JS.Name('z')],
+			(vars.length == 0? vars: [new JS.Prefix('var ', new JS.Assigment(vars))]).concat(stack[stack.length-1]));
 	};
 
 	// Expr
@@ -2031,17 +2047,6 @@ var Wortel = (function() {
 			var arr = randVar();
 			var a = randVar();
 			return new JS.ExprFn('', [arr], new JS.MethodCall(arr, 'map', [new JS.ExprFn('', [a], toFnCall(bl, [a]))]));
-		},
-		// binary
-		'!#~': function(n, a) {
-			if(a instanceof JS.Number || a instanceof JS.Name)
-				return compileMathFnRPN(n.val, [a]);
-			return new JS.FnCall(compileMathFnRPN(n.val, null, true), [a]);
-		},
-		'!~': function(n, a) {
-			if(a instanceof JS.Number || a instanceof JS.Name)
-				return compilePointerExpr(n.val, [a]);
-			return new JS.FnCall(compilePointerExpr(n.val, null, true), [a]);
 		},
 	};
 
