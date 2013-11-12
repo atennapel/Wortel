@@ -1,11 +1,11 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.67.3
+	@version: 0.67.4
 	@date: 2013-11-12
 */
 
 var Wortel = (function() {
-	var version = '0.67.3';
+	var version = '0.67.4';
 	var _randN = 0;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
@@ -1358,6 +1358,19 @@ var Wortel = (function() {
 				new JS.Prefix('return ', new JS.MethodCall(a, 'map', [new JS.ExprFn('', [x], new JS.FnCall('_rep', [n, x]))]))
 			], true);
 		})(),
+		'_mixin': (function() {
+			var o = new JS.Name('o'),
+					m = new JS.Name('m'),
+					k = new JS.Name('k');
+			return new JS.Fn('_mixin', [o, m], [
+				new JS.ForIn(new JS.Prefix('var ', k), m, new JS.Array([
+					new JS.If([
+						new JS.FnCall('m.hasOwnProperty', [k]),
+						new JS.Assigment([new JS.Index(new JS.Name('o.prototype'), k), new JS.Index(m, k)])
+					])
+				]))
+			], true);
+		})(),
 	};
 	function addLibTo(obj) {
 		for(var k in Lib) obj[k] = eval('('+Lib[k].compile()+')');
@@ -1966,9 +1979,11 @@ var Wortel = (function() {
 			}
 			throw 'Unknown @for type: '+type;
 		},
-		'@class': function(name, args, body) {
-			var args = args instanceof JS.Array || args instanceof JS.Group? args.val: [args];
-			var paren = args[0];
+		'@class': function(name, arg, body) {
+			var args = arg instanceof JS.Array || arg instanceof JS.Group || arg instanceof JS.Object? arg.val: [arg];
+			var paren = !(arg instanceof JS.Object)? args[0]: false;
+			var mixins = arg instanceof JS.Object? args: args.slice(1);
+			if(mixins.length == 0) mixins = false;
 			var body = body instanceof JS.Array? [body]: body instanceof JS.Object? body.val: [body];
 			var constr = body.length % 2? body[0]: new JS.Fn(name.val, [], [], true);
 			body = body.length % 2? body.slice(1): body;
@@ -1982,6 +1997,11 @@ var Wortel = (function() {
 			if(paren) {
 				addLib('_extends');
 				r.push(new JS.FnCall('_extends', [name, new JS.Name('_super')]));
+			}
+			if(mixins) {
+				addLib('_mixin');
+				for(var i = 0, l = mixins.length; i < l; i++)
+					r.push(new JS.FnCall('_mixin', [name, mixins[i]]));
 			}
 			// methods
 			for(var i = 0, l = body.length; i < l; i += 2) {

@@ -21,7 +21,7 @@
 }
 
 ; creating objects
-@var {
+@vars {
 	p 	@new Person['Peter' 25]
 	w 	@new Worker['Peter' 25]
 	w2 	@new Worker2['Peter' 25 'Programmer']
@@ -32,3 +32,19 @@
 	w2.getName. w2.getAge.
 ]
 p.work. w.work. w2.work.
+
+; mixins
+@var Walks {
+	walk &[] "I'm walking."
+}
+
+@class Walker [Person Walks] {
+	[name age]
+}
+
+!console.log `!.walk [] @new Walker['a' 10]
+
+; class with only mixins
+@class Walker2 {Walks} {}
+
+!console.log `!.walk [] @new Walker2[]
