@@ -175,69 +175,78 @@ var Wortel = (function() {
 			stack.push(v, v);
 		} else stack.push(last);
 	};
-	function compilePointerExpr(expr, inp, fn, st) {
-		var expr = expr.replace(/\_|\s/g, '');
+	function compilePointerExpr(pexpr, inp, fn, st) {
+		var pexpr = Array.isArray(pexpr)? pexpr: [pexpr];
 		var inp = inp || [], x = inp[0] || new JS.Name('x'),
 							y = inp[1] || new JS.Name('y'), z = inp[2] || new JS.Name('z');
 		var stack = st? inp: inp.length > 3? [].concat(inp).reverse(): [z, y, x];
 		var vars = [];
-		var a = expr.match(/\$[0-9a-zA-Z\.]+\$|k[0-9]+|k[A-Za-z]|[0-9]+\.[0-9]+|[0-9]+|[a-zA-Z]/g);
-		for(var i = 0, l = a.length, t; i < l; i++) {
-			var c = a[i], n = +c;
-			if(c[0] == '$') compileMathFnRPN(c.slice(1, -1), stack, false, true);
-			if(!isNaN(n)) stack.push(new JS.Number(n));
-			else if(c == 'a') addLib('_sum'), stack.push(new JS.FnCall('_sum', [stack.pop()]));
-			else if(c == 'b') addLib('_prod'), stack.push(new JS.FnCall('_prod', [stack.pop()]));
-			else if(c == 'c') stack.push(new JS.Prop(stack.pop(), new JS.Name('length')));
-			else if(c == 'd') dup(vars, stack, fn);
-			else if(c == 'e') ;
-			else if(c == 'f') addLib('_flat'), stack.push(new JS.FnCall('_flat', [stack.pop()]));
-			else if(c == 'g') ;
-			else if(c == 'h') stack.push(new JS.Index(stack.pop(), new JS.Number('0')));
-			else if(c == 'i') stack.push(new JS.MethodCall(stack.pop(), 'slice', [new JS.Number('0'), new JS.UnOp('-', new JS.Number('1'))]));
-			else if(c == 'j') t = stack.pop(), stack.push(new JS.MethodCall(stack.pop(), 'concat', [t]));
-			else if(c == 'k') ;
-			else if(c == 'l') addLib('_last'), stack.push(new JS.FnCall('_last', [stack.pop()]));
-			else if(c == 'm') addLib('_maxl'), stack.push(new JS.FnCall('_maxl', [stack.pop()]));
-			else if(c == 'n') addLib('_minl'), stack.push(new JS.FnCall('_minl', [stack.pop()]));
-			else if(c == 'o') addLib('_sort'), stack.push(new JS.FnCall('_sort', [stack.pop()]));
-			else if(c == 'p') addLib('_zip'), t = stack.pop(), stack.push(new JS.FnCall('_zip', [stack.pop(), t]));
-			else if(c == 'q') t = stack.pop(), stack.push(new JS.BinOp('==', stack.pop(), t));
-			else if(c == 'r') addLib('_rev'), stack.push(new JS.FnCall('_rev', [stack.pop()]));
-			else if(c == 's') ; // no-op
-			else if(c == 't') stack.push(new JS.MethodCall(stack.pop(), 'slice', [new JS.Number('1')]));
-			else if(c == 'u') addLib('_uniq'), stack.push(new JS.FnCall('_uniq', [stack.pop()]));
-			else if(c == 'v') ;
-			else if(c == 'w') stack.push(new JS.Array([stack.pop()]));
-			else if(c == 'x') ;
-			else if(c == 'y') t = [stack.pop(), stack.pop(), stack.pop()], stack.push(t[1], t[0], t[2]);
-			else if(c == 'z') t = [stack.pop(), stack.pop(), stack.pop()], stack.push(t[0], t[2], t[1]);
-			else if(c == 'A') addLib('_range'), stack.push(new JS.FnCall('_range', [new JS.Array([new JS.Number('1'), stack.pop()])]));
-			else if(c == 'B') addLib('_range'), stack.push(new JS.FnCall('_range', [new JS.Array([new JS.Number('0'), new JS.BinOp('-', stack.pop(), new JS.Number('1'))])]));
-			else if(c == 'C') stack.push(stack[stack.length-2]);
-			else if(c == 'D') stack.pop();
-			else if(c == 'E') ;
-			else if(c == 'F') ;
-			else if(c == 'G') ;
-			else if(c == 'H') ;
-			else if(c == 'I') t = stack.pop(), stack.push(new JS.Index(stack.pop(), t));
-			else if(c == 'J') ;
-			else if(c == 'K') stack.push(new JS.Array(stack.slice(-stack.pop().val)));
-			else if(c == 'L') ;
-			else if(c == 'M') ;
-			else if(c == 'N') ;
-			else if(c == 'O') t = stack.pop(), stack.push(new JS.MethodCall(new JS.Array([stack.pop()]), 'concat', [t]));
-			else if(c == 'P') addLib('_part'), stack.push(new JS.FnCall('_part', [stack.pop(), stack.pop()]));
-			else if(c == 'Q') t = stack.pop(), stack.push(new JS.BinOp('===', stack.pop(), t));
-			else if(c == 'R') addLib('_range'), stack.push(new JS.FnCall('_range', [stack.pop()]));
-			else if(c == 'S') t = stack.pop(), stack.push(t, stack.pop());
-			else if(c == 'T') t = stack.pop(), stack.push(new JS.MethodCall(stack.pop(), 'slice', [new JS.Number('0'), t]));
-			else if(c == 'U') ;
-			else if(c == 'V') ;
-			else if(c == 'W') addLib('_wrap'), stack.push(new JS.FnCall('_wrap', [stack.pop()]));
-			else if(c == 'X') stack.push(x);
-			else if(c == 'Y') stack.push(y);
-			else if(c == 'Z') stack.push(z);
+		for(var pi = 0, pl = pexpr.length; pi < pl; pi++) {
+			var cur = pexpr[pi];
+			if(cur instanceof JS.Array) stack.push(cur);
+			else if(cur instanceof JS.Group) stack.push(compilePointerExpr(cur.val, null, true));
+			else if(cur instanceof JS.Object) stack.push(cur.val[0]);
+			else if(cur instanceof JS.Name || cur instanceof JS.Number || typeof cur == 'string') {
+				var expr = (typeof cur == 'string'? cur: cur.val).replace(/\_|\s/g, '');
+				var a = expr.match(/\$[0-9a-zA-Z\.]+\$|k[0-9]+|k[A-Za-z]|[0-9]+\.[0-9]+|[0-9]+|[a-zA-Z]/g);
+				for(var i = 0, l = a.length, t; i < l; i++) {
+					var c = a[i], n = +c;
+					if(c[0] == '$') compileMathFnRPN(c.slice(1, -1), stack, false, true);
+					if(!isNaN(n)) stack.push(new JS.Number(n));
+					else if(c == 'a') addLib('_sum'), stack.push(new JS.FnCall('_sum', [stack.pop()]));
+					else if(c == 'b') addLib('_prod'), stack.push(new JS.FnCall('_prod', [stack.pop()]));
+					else if(c == 'c') stack.push(new JS.Prop(stack.pop(), new JS.Name('length')));
+					else if(c == 'd') dup(vars, stack, fn);
+					else if(c == 'e') ;
+					else if(c == 'f') addLib('_flat'), stack.push(new JS.FnCall('_flat', [stack.pop()]));
+					else if(c == 'g') ;
+					else if(c == 'h') stack.push(new JS.Index(stack.pop(), new JS.Number('0')));
+					else if(c == 'i') stack.push(new JS.MethodCall(stack.pop(), 'slice', [new JS.Number('0'), new JS.UnOp('-', new JS.Number('1'))]));
+					else if(c == 'j') t = stack.pop(), stack.push(new JS.MethodCall(stack.pop(), 'concat', [t]));
+					else if(c == 'k') ;
+					else if(c == 'l') addLib('_last'), stack.push(new JS.FnCall('_last', [stack.pop()]));
+					else if(c == 'm') addLib('_maxl'), stack.push(new JS.FnCall('_maxl', [stack.pop()]));
+					else if(c == 'n') addLib('_minl'), stack.push(new JS.FnCall('_minl', [stack.pop()]));
+					else if(c == 'o') addLib('_sort'), stack.push(new JS.FnCall('_sort', [stack.pop()]));
+					else if(c == 'p') addLib('_zip'), t = stack.pop(), stack.push(new JS.FnCall('_zip', [stack.pop(), t]));
+					else if(c == 'q') t = stack.pop(), stack.push(new JS.BinOp('==', stack.pop(), t));
+					else if(c == 'r') addLib('_rev'), stack.push(new JS.FnCall('_rev', [stack.pop()]));
+					else if(c == 's') ; // no-op
+					else if(c == 't') stack.push(new JS.MethodCall(stack.pop(), 'slice', [new JS.Number('1')]));
+					else if(c == 'u') addLib('_uniq'), stack.push(new JS.FnCall('_uniq', [stack.pop()]));
+					else if(c == 'v') ;
+					else if(c == 'w') stack.push(new JS.Array([stack.pop()]));
+					else if(c == 'x') ;
+					else if(c == 'y') t = [stack.pop(), stack.pop(), stack.pop()], stack.push(t[1], t[0], t[2]);
+					else if(c == 'z') t = [stack.pop(), stack.pop(), stack.pop()], stack.push(t[0], t[2], t[1]);
+					else if(c == 'A') addLib('_range'), stack.push(new JS.FnCall('_range', [new JS.Array([new JS.Number('1'), stack.pop()])]));
+					else if(c == 'B') addLib('_range'), stack.push(new JS.FnCall('_range', [new JS.Array([new JS.Number('0'), new JS.BinOp('-', stack.pop(), new JS.Number('1'))])]));
+					else if(c == 'C') stack.push(stack[stack.length-2]);
+					else if(c == 'D') stack.pop();
+					else if(c == 'E') t = stack.pop(), stack.push(new JS.MethodCall(stack.pop(), 'reduce', [t]));
+					else if(c == 'F') t = stack.pop(), stack.push(new JS.MethodCall(stack.pop(), 'filter', [t]));
+					else if(c == 'G') ;
+					else if(c == 'H') ;
+					else if(c == 'I') t = stack.pop(), stack.push(new JS.Index(stack.pop(), t));
+					else if(c == 'J') ;
+					else if(c == 'K') stack.push(new JS.Array(stack.slice(-stack.pop().val)));
+					else if(c == 'L') ;
+					else if(c == 'M') t = stack.pop(), stack.push(new JS.MethodCall(stack.pop(), 'map', [t]));
+					else if(c == 'N') ;
+					else if(c == 'O') t = stack.pop(), stack.push(new JS.MethodCall(new JS.Array([stack.pop()]), 'concat', [t]));
+					else if(c == 'P') addLib('_part'), stack.push(new JS.FnCall('_part', [stack.pop(), stack.pop()]));
+					else if(c == 'Q') t = stack.pop(), stack.push(new JS.BinOp('===', stack.pop(), t));
+					else if(c == 'R') addLib('_range'), stack.push(new JS.FnCall('_range', [stack.pop()]));
+					else if(c == 'S') t = stack.pop(), stack.push(t, stack.pop());
+					else if(c == 'T') t = stack.pop(), stack.push(new JS.MethodCall(stack.pop(), 'slice', [new JS.Number('0'), t]));
+					else if(c == 'U') ;
+					else if(c == 'V') ;
+					else if(c == 'W') addLib('_wrap'), stack.push(new JS.FnCall('_wrap', [stack.pop()]));
+					else if(c == 'X') stack.push(x);
+					else if(c == 'Y') stack.push(y);
+					else if(c == 'Z') stack.push(z);
+				}
+			}
 		}
 		return !fn? stack[stack.length-1]: new JS.ExprFn('', [new JS.Name('x'), new JS.Name('y'), new JS.Name('z')],
 			(vars.length == 0? vars: [new JS.Prefix('var ', new JS.Assigment(vars))]).concat(stack[stack.length-1]));
@@ -263,68 +272,77 @@ var Wortel = (function() {
 		}
 		return eval((new JS.FnCall(compileMathFnRPN(val, false, true), [])).compile());
 	};
-	function compileMathFnRPN(expr, inp, fn, st) {
-		var expr = expr.replace(/\$|\_|\s/g, '');
+	function compileMathFnRPN(pexpr, inp, fn, st) {
+		var pexpr = Array.isArray(pexpr)? pexpr: [pexpr];
 		var inp = inp || [], x = inp[0] || new JS.Name('x'),
 							y = inp[1] || new JS.Name('y'), z = inp[2] || new JS.Name('z');
 		var stack = st? inp: inp.length > 3? [].concat(inp).reverse(): [z, y, x];
 		var vars = [];
-		var a = expr.match(/k[0-9]+|k[A-Za-z]|[0-9]+\.[0-9]+|[0-9]+|[a-zA-Z]/g);
-		for(var i = 0, l = a.length, t; i < l; i++) {
-			var c = a[i], n = +c;
-			if(!isNaN(n)) stack.push(new JS.Number(n));
-			else if(c == 'a') t = stack.pop(), stack.push(new JS.BinOp('+', stack.pop(), t));
-			else if(c == 'b') t = stack.pop(), stack.push(new JS.BinOp('-', stack.pop(), t));
-			else if(c == 'c') stack.push(new JS.FnCall('Math.ceiling', [stack.pop()]));
-			else if(c == 'd') dup(vars, stack, fn);
-			else if(c == 'e') t = stack.pop(), stack.push(new JS.BinOp('*', stack.pop(), new JS.FnCall('Math.pow', [new JS.Number('10'), t])));
-			else if(c == 'f') stack.push(new JS.FnCall('Math.floor', [stack.pop()]));
-			else if(c == 'g') t = stack.pop(), stack.push(new JS.BinOp('>', stack.pop(), t));
-			else if(c == 'h') stack.push(new JS.BinOp('/', stack.pop(), new JS.Number('2')));
-			else if(c == 'i') stack.push(new JS.BinOp('+', stack.pop(), new JS.Number('1')));
-			else if(c == 'j') stack.push(new JS.BinOp('-', stack.pop(), new JS.Number('1')));
-			else if(c == 'k') ;
-			else if(c == 'l') t = stack.pop(), stack.push(new JS.BinOp('<', stack.pop(), t));
-			else if(c == 'm') t = stack.pop(), stack.push(new JS.BinOp('*', stack.pop(), t));
-			else if(c == 'n') t = stack.pop(), stack.push(new JS.BinOp('/', stack.pop(), t));
-			else if(c == 'o') stack.push(new JS.BinOp('*', stack.pop(), new JS.Number('2')));
-			else if(c == 'p') t = stack.pop(), stack.push(new JS.FnCall('Math.pow', [stack.pop(), t]));
-			else if(c == 'q') t = stack.pop(), stack.push(new JS.BinOp('==', stack.pop(), t));
-			else if(c == 'r') stack.push(new JS.FnCall('Math.round', [stack.pop()]));
-			else if(c == 's') ; // no-op
-			else if(c == 't') t = stack.pop(), stack.push(new JS.BinOp('>=', stack.pop(), t));
-			else if(c == 'u') t = stack.pop(), stack.push(new JS.BinOp('<=', stack.pop(), t));
-			else if(c == 'v') stack.push(new JS.FnCall('Math.sqrt', [stack.pop()]));
-			else if(c == 'w') ;
-			else if(c == 'x') t = stack.pop(), stack.push(new JS.BinOp('^', stack.pop(), t));
-			else if(c == 'y') t = [stack.pop(), stack.pop(), stack.pop()], stack.push(t[1], t[0], t[2]);
-			else if(c == 'z') t = [stack.pop(), stack.pop(), stack.pop()], stack.push(t[0], t[2], t[1]);
-			else if(c == 'A') t = stack.pop(), stack.push(new JS.BinOp('&', stack.pop(), t));
-			else if(c == 'B') stack.push(new JS.BinOp('*', stack.pop(), new JS.Number('1000000000')));
-			else if(c == 'C') stack.push(stack[stack.length-2]);
-			else if(c == 'D') stack.pop();
-			else if(c == 'E') stack.push(new JS.Name('Math.E'));
-			else if(c == 'F') addLib('_fac'), stack.push(new JS.FnCall('_fac', [stack.pop()]));
-			else if(c == 'G') stack.push(new JS.FnCall('Math.max', [stack.pop(), stack.pop()]));
-			else if(c == 'H') stack.push(new JS.BinOp('*', stack.pop(), new JS.Number('100')));
-			else if(c == 'I') stack.push(new JS.FnCall('Math.abs', [stack.pop()]));
-			else if(c == 'J') ;
-			else if(c == 'K') stack.push(new JS.BinOp('*', stack.pop(), new JS.Number('1000')));
-			else if(c == 'L') stack.push(new JS.FnCall('Math.min', [stack.pop(), stack.pop()]));
-			else if(c == 'M') stack.push(new JS.BinOp('*', stack.pop(), new JS.Number('1000000')));
-			else if(c == 'N') stack.push(new JS.BinOp('*', stack.pop(), new JS.UnOp('-', new JS.Number('1'))));
-			else if(c == 'O') t = stack.pop(), stack.push(new JS.BinOp('|', stack.pop(), t));
-			else if(c == 'P') stack.push(new JS.Name('Math.PI'));
-			else if(c == 'Q') t = stack.pop(), stack.push(new JS.BinOp('===', stack.pop(), t));
-			else if(c == 'R') t = stack.pop(), stack.push(new JS.BinOp('%', stack.pop(), t));
-			else if(c == 'S') t = stack.pop(), stack.push(t, stack.pop());
-			else if(c == 'T') stack.push(new JS.BinOp('*', stack.pop(), new JS.Number('10')));
-			else if(c == 'U') ;
-			else if(c == 'V') addLib('_sq'), stack.push(new JS.FnCall('_sq', [stack.pop()]));
-			else if(c == 'W') ;
-			else if(c == 'X') stack.push(x);
-			else if(c == 'Y') stack.push(y);
-			else if(c == 'Z') stack.push(z);
+		for(var pi = 0, pl = pexpr.length; pi < pl; pi++) {
+			var cur = pexpr[pi];
+			if(cur instanceof JS.Array) stack.push(cur);
+			else if(cur instanceof JS.Group) stack.push(compileMathFnRPN(cur.val, null, true));
+			else if(cur instanceof JS.Object) stack.push(cur.val[0]);
+			else if(cur instanceof JS.Name || cur instanceof JS.Number || typeof cur == 'string') {
+				var expr = (typeof cur == 'string'? cur: cur.val).replace(/\_|\s/g, '');
+				var a = expr.match(/k[0-9]+|k[A-Za-z]|[0-9]+\.[0-9]+|[0-9]+|[a-zA-Z]/g);
+				for(var i = 0, l = a.length, t; i < l; i++) {
+					var c = a[i], n = +c;
+					if(!isNaN(n)) stack.push(new JS.Number(n));
+					else if(c == 'a') t = stack.pop(), stack.push(new JS.BinOp('+', stack.pop(), t));
+					else if(c == 'b') t = stack.pop(), stack.push(new JS.BinOp('-', stack.pop(), t));
+					else if(c == 'c') stack.push(new JS.FnCall('Math.ceiling', [stack.pop()]));
+					else if(c == 'd') dup(vars, stack, fn);
+					else if(c == 'e') t = stack.pop(), stack.push(new JS.BinOp('*', stack.pop(), new JS.FnCall('Math.pow', [new JS.Number('10'), t])));
+					else if(c == 'f') stack.push(new JS.FnCall('Math.floor', [stack.pop()]));
+					else if(c == 'g') t = stack.pop(), stack.push(new JS.BinOp('>', stack.pop(), t));
+					else if(c == 'h') stack.push(new JS.BinOp('/', stack.pop(), new JS.Number('2')));
+					else if(c == 'i') stack.push(new JS.BinOp('+', stack.pop(), new JS.Number('1')));
+					else if(c == 'j') stack.push(new JS.BinOp('-', stack.pop(), new JS.Number('1')));
+					else if(c == 'k') ;
+					else if(c == 'l') t = stack.pop(), stack.push(new JS.BinOp('<', stack.pop(), t));
+					else if(c == 'm') t = stack.pop(), stack.push(new JS.BinOp('*', stack.pop(), t));
+					else if(c == 'n') t = stack.pop(), stack.push(new JS.BinOp('/', stack.pop(), t));
+					else if(c == 'o') stack.push(new JS.BinOp('*', stack.pop(), new JS.Number('2')));
+					else if(c == 'p') t = stack.pop(), stack.push(new JS.FnCall('Math.pow', [stack.pop(), t]));
+					else if(c == 'q') t = stack.pop(), stack.push(new JS.BinOp('==', stack.pop(), t));
+					else if(c == 'r') stack.push(new JS.FnCall('Math.round', [stack.pop()]));
+					else if(c == 's') ; // no-op
+					else if(c == 't') t = stack.pop(), stack.push(new JS.BinOp('>=', stack.pop(), t));
+					else if(c == 'u') t = stack.pop(), stack.push(new JS.BinOp('<=', stack.pop(), t));
+					else if(c == 'v') stack.push(new JS.FnCall('Math.sqrt', [stack.pop()]));
+					else if(c == 'w') ;
+					else if(c == 'x') t = stack.pop(), stack.push(new JS.BinOp('^', stack.pop(), t));
+					else if(c == 'y') t = [stack.pop(), stack.pop(), stack.pop()], stack.push(t[1], t[0], t[2]);
+					else if(c == 'z') t = [stack.pop(), stack.pop(), stack.pop()], stack.push(t[0], t[2], t[1]);
+					else if(c == 'A') t = stack.pop(), stack.push(new JS.BinOp('&', stack.pop(), t));
+					else if(c == 'B') stack.push(new JS.BinOp('*', stack.pop(), new JS.Number('1000000000')));
+					else if(c == 'C') stack.push(stack[stack.length-2]);
+					else if(c == 'D') stack.pop();
+					else if(c == 'E') stack.push(new JS.Name('Math.E'));
+					else if(c == 'F') addLib('_fac'), stack.push(new JS.FnCall('_fac', [stack.pop()]));
+					else if(c == 'G') stack.push(new JS.FnCall('Math.max', [stack.pop(), stack.pop()]));
+					else if(c == 'H') stack.push(new JS.BinOp('*', stack.pop(), new JS.Number('100')));
+					else if(c == 'I') stack.push(new JS.FnCall('Math.abs', [stack.pop()]));
+					else if(c == 'J') ;
+					else if(c == 'K') stack.push(new JS.BinOp('*', stack.pop(), new JS.Number('1000')));
+					else if(c == 'L') stack.push(new JS.FnCall('Math.min', [stack.pop(), stack.pop()]));
+					else if(c == 'M') stack.push(new JS.BinOp('*', stack.pop(), new JS.Number('1000000')));
+					else if(c == 'N') stack.push(new JS.BinOp('*', stack.pop(), new JS.UnOp('-', new JS.Number('1'))));
+					else if(c == 'O') t = stack.pop(), stack.push(new JS.BinOp('|', stack.pop(), t));
+					else if(c == 'P') stack.push(new JS.Name('Math.PI'));
+					else if(c == 'Q') t = stack.pop(), stack.push(new JS.BinOp('===', stack.pop(), t));
+					else if(c == 'R') t = stack.pop(), stack.push(new JS.BinOp('%', stack.pop(), t));
+					else if(c == 'S') t = stack.pop(), stack.push(t, stack.pop());
+					else if(c == 'T') stack.push(new JS.BinOp('*', stack.pop(), new JS.Number('10')));
+					else if(c == 'U') ;
+					else if(c == 'V') addLib('_sq'), stack.push(new JS.FnCall('_sq', [stack.pop()]));
+					else if(c == 'W') ;
+					else if(c == 'X') stack.push(x);
+					else if(c == 'Y') stack.push(y);
+					else if(c == 'Z') stack.push(z);
+				}
+			}
 		}
 		return !fn? stack[stack.length-1]: new JS.ExprFn('', [new JS.Name('x'), new JS.Name('y'), new JS.Name('z')],
 			(vars.length == 0? vars: [new JS.Prefix('var ', new JS.Assigment(vars))]).concat(stack[stack.length-1]));
@@ -2030,7 +2048,7 @@ var Wortel = (function() {
 		'~': function(n) {
 			if(n instanceof JS.Array)
 				return new JS.FnCall(new JS.ExprFn('', [], n.val), []);
-			if(n instanceof JS.Name || n instanceof JS.Number)
+			if(n instanceof JS.Name || n instanceof JS.Number || n instanceof JS.Group)
 				return compilePointerExpr(n.val, null, true);
 		},
 		'#~': function(n) {return compileMathFnRPN(n.val, null, true)},

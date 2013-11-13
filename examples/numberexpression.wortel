@@ -1,4 +1,4 @@
-; Math expressions
+; Number expressions
 #~av ; sqrt(x+y)
 #~bVv ; sqrt(sq(x-y))
 #~5vihSp5vnr ; nth fibonacci
@@ -10,3 +10,6 @@
 
 ; mapping
 !*#~5vihSp5vnr @to 5 ; [1 1 2 3 5]
+
+; accessing vars
+#~({n}a) ; -> function(x, y, z) {return x + n}

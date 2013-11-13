@@ -28,15 +28,15 @@ A to
 B	til
 C over
 D pop
-E 
-F
+E reduce
+F filter
 G
 H
 I index
 J
 K pick n from stack
 L
-M
+M map
 N
 O cons
 P partition
