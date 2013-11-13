@@ -217,7 +217,7 @@ var Wortel = (function() {
 					else if(c == 'u') addLib('_uniq'), stack.push(new JS.FnCall('_uniq', [stack.pop()]));
 					else if(c == 'v') ;
 					else if(c == 'w') stack.push(new JS.Array([stack.pop()]));
-					else if(c == 'x') ;
+					else if(c == 'x') t = stack.pop(), stack.push(new JS.Array([stack.pop(), t]));
 					else if(c == 'y') t = [stack.pop(), stack.pop(), stack.pop()], stack.push(t[1], t[0], t[2]);
 					else if(c == 'z') t = [stack.pop(), stack.pop(), stack.pop()], stack.push(t[0], t[2], t[1]);
 					else if(c == 'A') addLib('_range'), stack.push(new JS.FnCall('_range', [new JS.Array([new JS.Number('1'), stack.pop()])]));

@@ -21,7 +21,7 @@ t tail
 u uniq
 v
 w wrap
-x
+x pair
 y rotl top3
 z rotr top3
 A to
