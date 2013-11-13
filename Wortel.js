@@ -1589,6 +1589,9 @@ var Wortel = (function() {
 			}
 		},
 		// binary
+		'->': function(f) {
+			return new JS.MethodCall(f, 'bind', [new JS.Name('this')]);
+		},
 		'&': function(args, body) {
 			if(args instanceof JS.String)
 				return new JS.RegExp(args, body);
@@ -2027,7 +2030,8 @@ var Wortel = (function() {
 		'~': function(n) {
 			if(n instanceof JS.Array)
 				return new JS.FnCall(new JS.ExprFn('', [], n.val), []);
-			return compilePointerExpr(n.val, null, true);
+			if(n instanceof JS.Name || n instanceof JS.Number)
+				return compilePointerExpr(n.val, null, true);
 		},
 		'#~': function(n) {return compileMathFnRPN(n.val, null, true)},
 		'^': function(bl) {
