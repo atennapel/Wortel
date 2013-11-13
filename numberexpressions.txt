@@ -33,7 +33,7 @@ F factorial
 G max
 H a*1e2
 I abs
-J
+J + unary
 K a*1e3
 L min
 M a*1e6
@@ -44,7 +44,7 @@ Q strict-eq
 R rem
 S swap
 T a*10
-U
+U - unary
 V sq
 W
 X var x

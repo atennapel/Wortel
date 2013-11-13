@@ -1,11 +1,11 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.67.4
-	@date: 2013-11-12
+	@version: 0.67.5
+	@date: 2013-11-13
 */
 
 var Wortel = (function() {
-	var version = '0.67.4';
+	var version = '0.67.5';
 	var _randN = 0;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
@@ -164,6 +164,7 @@ var Wortel = (function() {
 		}
 	};
 
+	function log(x) {console.log(x); return x};
 	function compile(s, sub) {return toJS(parse(s), sub)};
 
 	// MathFn and Pointer Expr
@@ -324,7 +325,7 @@ var Wortel = (function() {
 					else if(c == 'G') stack.push(new JS.FnCall('Math.max', [stack.pop(), stack.pop()]));
 					else if(c == 'H') stack.push(new JS.BinOp('*', stack.pop(), new JS.Number('100')));
 					else if(c == 'I') stack.push(new JS.FnCall('Math.abs', [stack.pop()]));
-					else if(c == 'J') ;
+					else if(c == 'J') stack.push(new JS.UnOp('+', stack.pop()));
 					else if(c == 'K') stack.push(new JS.BinOp('*', stack.pop(), new JS.Number('1000')));
 					else if(c == 'L') stack.push(new JS.FnCall('Math.min', [stack.pop(), stack.pop()]));
 					else if(c == 'M') stack.push(new JS.BinOp('*', stack.pop(), new JS.Number('1000000')));
@@ -335,7 +336,7 @@ var Wortel = (function() {
 					else if(c == 'R') t = stack.pop(), stack.push(new JS.BinOp('%', stack.pop(), t));
 					else if(c == 'S') t = stack.pop(), stack.push(t, stack.pop());
 					else if(c == 'T') stack.push(new JS.BinOp('*', stack.pop(), new JS.Number('10')));
-					else if(c == 'U') ;
+					else if(c == 'U') stack.push(new JS.UnOp('-', stack.pop()));
 					else if(c == 'V') addLib('_sq'), stack.push(new JS.FnCall('_sq', [stack.pop()]));
 					else if(c == 'W') ;
 					else if(c == 'X') stack.push(x);
@@ -1389,6 +1390,12 @@ var Wortel = (function() {
 				]))
 			], true);
 		})(),
+		'_enum': (function() {
+			var o = new JS.Name('o');
+			return new JS.Fn('_enum', [o], [
+				new JS.Prefix('return ', new JS.FnCall('_zip', [new JS.FnCall('Object.keys', [o]), new JS.FnCall('_vals', [o])]))
+			], true);
+		})(),
 	};
 	function addLibTo(obj) {
 		for(var k in Lib) obj[k] = eval('('+Lib[k].compile()+')');
@@ -1439,6 +1446,7 @@ var Wortel = (function() {
 		'!^': ['_powf'],
 		',': ['_wrap'],
 		'@all': ['_all'],
+		'@vals': ['_vals'],
 		'@any': ['_any'],
 		'@none': ['_none'],
 		'@one': ['_one'],
@@ -1451,6 +1459,7 @@ var Wortel = (function() {
 		'!<<': ['_mapm', '_upgrade'],
 		'!>>': ['_mapm', '_upgrade'],
 		'!<>': ['_mapm', '_upgrade', '_wrap', '_upgradeb'],
+		'@enum': ['_vals', '_zip'],
 	};
 	var opToLib = {
 		'@%': '_mod',
@@ -1497,6 +1506,7 @@ var Wortel = (function() {
 		'@upgrade': '_upgrade',
 		'@upgradeb': '_upgradeb',
 		'@upgradel': '_upgradel',
+		'@enum': '_enum',
 	};
 
 	function wrap(a) {return a instanceof JS.Array? a.val: [a]};
@@ -1540,6 +1550,7 @@ var Wortel = (function() {
 		'@maxf': function(f, x) {return new JS.FnCall('_maxf', [f, x])},
 		'@minf': function(f, x) {return new JS.FnCall('_minf', [f, x])},
 		'@count': function(f, x) {return new JS.FnCall('_count', [f, x])},
+		'@enum': function(o) {return new JS.FnCall('_enum', [o])},
 
 		// Boolean
 		// unary
@@ -1640,6 +1651,9 @@ var Wortel = (function() {
 					if(args.length != operators[bl.val].length)
 						throw 'Invalid length for partial application of '+bl.val+'.';
 					return new JS.ExprFn('', vars, new JS.Block(bl.val, args, false, bl.reversed));
+				} else if(bl instanceof JS.Name && bl.val[0] == '.') {
+						var o = randVar();
+						return new JS.ExprFn('', [o].concat(vars), new JS.MethodCall(o, new JS.Name(bl.val.slice(1)), args));
 				} else return new JS.ExprFn('', vars, new JS.FnCall(bl, args));
 			} else {
 				if(bl instanceof JS.Block) {
@@ -1651,6 +1665,9 @@ var Wortel = (function() {
 							return new JS.ExprFn('', args, new JS.Block(bl.val, [arg].concat(args), false, bl.reversed));
 						}
 					}
+				} else if(bl instanceof JS.Name && bl.val[0] == '.') {
+						var o = randVar();
+						return new JS.ExprFn('', [o], new JS.MethodCall(o, new JS.Name(bl.val.slice(1)), [arg]));
 				} else return new JS.MethodCall(bl, 'bind', [new JS.Name('this'), arg]);
 			}
 		},
