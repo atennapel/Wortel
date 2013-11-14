@@ -1993,7 +1993,7 @@ var Wortel = (function() {
 						end, b
 					])),
 					new JS.BinOp('>=', arg, end),
-					new JS.BinOp('+=', arg, stepv),
+					new JS.BinOp('-=', arg, stepv),
 					new JS.Array(body)
 				);
 			} else if(type == 'range') {
@@ -2083,6 +2083,8 @@ var Wortel = (function() {
 			return new JS.Empty();
 		},
 		'+^': function(bl) {
+			if(bl instanceof JS.Array)
+				return new JS.FnCall(new JS.Fn('', [], bl.val), []);
 			var v = randVar();
 			return new JS.ExprFn('', [new JS.Block('~', [v])], toFnCall(bl, [v]));
 		},
@@ -2109,11 +2111,29 @@ var Wortel = (function() {
 		},
 	};
 
+	function formatValue(x) {
+		var t = typeof x;
+		if(t == 'number' || t == 'boolean' || t == 'undefined' || x === null || t == 'function')
+			return ''+x;
+		else if(t == 'string')
+			return '"' + x + '"';
+		else if(Array.isArray(x))
+			return '[' + x.map(formatValue).join(' ') + ']';
+		else {
+			var r = [];
+			for(var k in x)
+				if(x.hasOwnProperty(k))
+					r.push(k, x[k]);
+			return '{' + r.map(formatValue).join(' ') + '}';
+		}
+	};
+
 	return {
 		compile: compile,
 		parse: parse,
 		version: version,
-		addLibTo: addLibTo
+		addLibTo: addLibTo,
+		formatValue: formatValue
 	};
 })();
 
@@ -2137,7 +2157,7 @@ if(typeof global != 'undefined' && global) {
 						if(s.trim() == 'setModeParse') mode = PARSEMODE;
 						else if(s.trim() == 'setModeEval') mode = EVALMODE;
 						else if(mode == PARSEMODE) console.log(Wortel.compile(s, true));
-						else if(mode == EVALMODE) console.log(eval(Wortel.compile(s, true)));
+						else if(mode == EVALMODE) console.log(Wortel.formatValue(eval(Wortel.compile(s, true))));
 					} catch(e) {
 						console.log('Error: '+e);
 					}
