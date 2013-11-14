@@ -1658,13 +1658,8 @@ var Wortel = (function() {
 			} else {
 				if(bl instanceof JS.Block) {
 					checkLib(bl.val);
-					if(!(arg instanceof JS.Array)) {
-						if(opToLib[bl.val]) return operators['\\'](new JS.Name(opToLib[bl.val]), arg);
-						else {
-							for(var i = 0, n = operators[bl.val].length-1, args = []; i < n; i++) args.push(randVar());
-							return new JS.ExprFn('', args, new JS.Block(bl.val, [arg].concat(args), false, bl.reversed));
-						}
-					}
+					for(var i = 0, n = operators[bl.val].length-1, args = []; i < n; i++) args.push(randVar());
+					return new JS.ExprFn('', args, new JS.Block(bl.val, [arg].concat(args), false, bl.reversed));
 				} else if(bl instanceof JS.Name && bl.val[0] == '.') {
 						var o = randVar();
 						return new JS.ExprFn('', [o], new JS.MethodCall(o, new JS.Name(bl.val.slice(1)), [arg]));
