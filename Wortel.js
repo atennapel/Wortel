@@ -2143,6 +2143,7 @@ var Wortel = (function() {
 			var a = randVar();
 			return new JS.ExprFn('', [arr], new JS.MethodCall(arr, 'map', [new JS.ExprFn('', [a], toFnCall(bl, [a]))]));
 		},
+		'&^': function(v) {return new JS.ExprFn('', [], v)},
 	};
 
 	function formatValue(x) {
