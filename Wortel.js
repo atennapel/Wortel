@@ -1835,6 +1835,16 @@ var Wortel = (function() {
 			else
 				return new JS.FnCall(new JS.Fn('', [], [new JS.Prefix('var ', new JS.Assigment([name, x])), new JS.Prefix('return ', new JS.Ternary(r))]), []);
 		},
+		'!?': function(o) {
+			var vr = randVar();
+			var arr = o.val, l = arr.length;
+			for(var i = 0, r = []; i < l; i += 2) {
+				var k = arr[i], v = arr[i+1];
+				r.push(new JS.FnCall(k, [vr]));
+				if(v !== undefined) r.push(new JS.FnCall(v, [vr]));
+			}
+			return new JS.ExprFn('', [vr], new JS.Ternary(r));
+		},
 		'|': function(o, ch) {
 			var ar = ch.val, c = o;
 			for(var i = 0, l = ar.length; i < l; i += 2) {
