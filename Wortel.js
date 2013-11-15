@@ -1396,6 +1396,32 @@ var Wortel = (function() {
 				new JS.Prefix('return ', new JS.FnCall('_zip', [new JS.FnCall('Object.keys', [o]), new JS.FnCall('_vals', [o])]))
 			], true);
 		})(),
+		'_fnarr': (function() {
+			var a = new JS.Name('a'),
+					b = new JS.Name('b'),
+					i = new JS.Name('i'),
+					l1 = new JS.Name('l1'),
+					l2 = new JS.Name('l2'),
+					lm = new JS.Name('lm'),
+					r = new JS.Name('r'),
+					len = new JS.Name('length');
+			return new JS.Fn('_fnarr', [a, b], [
+				new JS.Prefix('var ', new JS.Assigment([
+					a, new JS.FnCall('_wrap', [a]),
+					b, new JS.FnCall('_wrap', [b])
+				])),
+				new JS.For(new JS.Prefix('var ', new JS.Assigment([
+					i, new JS.Number('0'),
+					l1, new JS.Prop(a, len),
+					l2, new JS.Prop(b, len),
+					lm, new JS.FnCall('Math.max', [l1, l2]),
+					r, new JS.Array([])
+				])), new JS.BinOp('<', i, lm), new JS.Suffix('++', i), new JS.Array([
+					new JS.FnCall('r.push', [new JS.FnCall(new JS.Index(a, new JS.BinOp('%', i, l1)), [new JS.Index(b, new JS.BinOp('%', i, l2))])])
+				])),
+				new JS.Prefix('return ', r)
+			]);
+		})(),
 	};
 	function addLibTo(obj) {
 		for(var k in Lib) obj[k] = eval('('+Lib[k].compile()+')');
@@ -1460,9 +1486,11 @@ var Wortel = (function() {
 		'!>>': ['_mapm', '_upgrade'],
 		'!<>': ['_mapm', '_upgrade', '_wrap', '_upgradeb'],
 		'@enum': ['_vals', '_zip'],
+		'&!': ['_wrap', '_fnarr'],
 	};
 	var opToLib = {
 		'@%': '_mod',
+		'&!': '_fnarr',
 		'@range': '_range',
 		'@rangef': '_rangef',
 		'@last': '_last',
@@ -1542,7 +1570,7 @@ var Wortel = (function() {
 		'/': function(x, y) {return new JS.BinOp('/', x, y)},
 		'%': function(x, y) {return new JS.BinOp('%', x, y)},
 		'%%': function(x, y) {return new JS.BinOp('==', new JS.BinOp('%', x, y), new JS.Number(0))},
-		'!%%': function(x, y) {return new JS.BinOp('!=', new JS.BinOp('%', x, y), new JS.Number(0))},
+		'!%': function(x, y) {return new JS.BinOp('!=', new JS.BinOp('%', x, y), new JS.Number(0))},
 		'@%': function(x, y) {return new JS.FnCall('_mod', [x, y])},
 		'@^': function(x, y) {return new JS.FnCall('Math.pow', [x, y])},
 		'@max': function(x, y) {return new JS.FnCall('Math.max', [x, y])},
@@ -1642,6 +1670,7 @@ var Wortel = (function() {
 				return new JS.FnCall(fn, list.val);
 			else return new JS.MethodCall(fn, 'apply', [new JS.Name('this'), list]);
 		},
+		'&!': function(a, b) {return new JS.FnCall('_fnarr', [a, b])},
 		'\\': function(bl, arg) {
 			if(arg instanceof JS.Array) {
 				var vars = arg.val.filter(function(x) {return x instanceof JS.Name && x.val == '.'}).map(randVar);
