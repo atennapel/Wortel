@@ -1714,7 +1714,7 @@ var Wortel = (function() {
 		'@split': function(n, a) {return new JS.MethodCall(a, 'split', [n])},
 		'@lastIndexOf': function(n, a) {return new JS.MethodCall(a, 'lastIndexOf', [n])},
 		// ternary
-		'@replace': function(a, b, s) {return new JS.MethodCall(a, 'replace', [a, b])},
+		'@replace': function(a, b, s) {return new JS.MethodCall(s, 'replace', [a, b])},
 
 		// Array
 		// unary
