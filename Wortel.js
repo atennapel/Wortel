@@ -342,6 +342,8 @@ var Wortel = (function() {
 					else if(c == 'X') stack.push(x);
 					else if(c == 'Y') stack.push(y);
 					else if(c == 'Z') stack.push(z);
+					else if(c == 'kg') addLib('_gcd'), t = stack.pop(), stack.push(new JS.FnCall('_gcd', [stack.pop(), t]));
+					else if(c == 'km') addLib('_gcd'), addLib('_lcm'), t = stack.pop(), stack.push(new JS.FnCall('_lcm', [stack.pop(), t]));
 				}
 			}
 		}
@@ -1420,7 +1422,30 @@ var Wortel = (function() {
 					new JS.FnCall('r.push', [new JS.FnCall(new JS.Index(a, new JS.BinOp('%', i, l1)), [new JS.Index(b, new JS.BinOp('%', i, l2))])])
 				])),
 				new JS.Prefix('return ', r)
-			]);
+			], true);
+		})(),
+		'_gcd': (function() {
+			var a = new JS.Name('a'),
+					b = new JS.Name('b'),
+					t = new JS.Name('t');
+			return new JS.Fn('_gcd', [a, b], [
+				new JS.Prefix('var ', t),
+				new JS.While(b, new JS.Array([
+					new JS.Assigment([
+						t, b,
+						b, new JS.BinOp('%', a, b),
+						a, t
+					])
+				])),
+				new JS.Prefix('return ', a)
+			], true);
+		})(),
+		'_lcm': (function() {
+			var a = new JS.Name('a'),
+					b = new JS.Name('b');
+			return new JS.Fn('_lcm', [a, b], [
+				new JS.Prefix('return ', new JS.BinOp('*', b, new JS.BinOp('/', a, new JS.FnCall('_gcd', [a, b]))))
+			], true);
 		})(),
 	};
 	function addLibTo(obj) {
@@ -1471,6 +1496,8 @@ var Wortel = (function() {
 		'@count': ['_count'],
 		'!^': ['_powf'],
 		',': ['_wrap'],
+		'@gcd': ['_gcd'],
+		'@lcm': ['_gcd', '_lcm'],
 		'@all': ['_all'],
 		'@vals': ['_vals'],
 		'@any': ['_any'],
@@ -1535,6 +1562,8 @@ var Wortel = (function() {
 		'@upgradeb': '_upgradeb',
 		'@upgradel': '_upgradel',
 		'@enum': '_enum',
+		'@gcd': '_gcd',
+		'@lcm': '_lcm',
 	};
 
 	function wrap(a) {return a instanceof JS.Array? a.val: [a]};
@@ -1557,6 +1586,8 @@ var Wortel = (function() {
 		'@+': function(x) {return new JS.UnOp('+', x)},
 		'@-': function(x) {return new JS.UnOp('-', x)},
 		'@sq': function(x) {return new JS.FnCall('_sq', [x])},
+		'@gcd': function(a, b) {return new JS.FnCall('_gcd', [a, b])},
+		'@lcm': function(a, b) {return new JS.FnCall('_lcm', [a, b])},
 		'@sqrt': function(x) {return new JS.FnCall('Math.sqrt', [x])},
 		'@abs': function(x) {return new JS.FnCall('Math.abs', [x])},
 		'@fac': function(x) {return new JS.FnCall('_fac', [x])},
