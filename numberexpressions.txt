@@ -1,6 +1,6 @@
 a add
 b sub
-c ceiling
+c ceil
 d dup
 e a*pow(10, b)
 f floor
@@ -20,7 +20,7 @@ s no-op
 t greater-or-eq
 u less-or-eq
 v sqrt
-w
+w rand
 x bin-xor
 y rotl top3
 z rotr top3
@@ -46,7 +46,7 @@ S swap
 T a*10
 U - unary
 V sq
-W
+W rand to n
 X var x
 Y var y
 Z var z

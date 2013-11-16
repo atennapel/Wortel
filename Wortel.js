@@ -292,7 +292,7 @@ var Wortel = (function() {
 					if(!isNaN(n)) stack.push(new JS.Number(n));
 					else if(c == 'a') t = stack.pop(), stack.push(new JS.BinOp('+', stack.pop(), t));
 					else if(c == 'b') t = stack.pop(), stack.push(new JS.BinOp('-', stack.pop(), t));
-					else if(c == 'c') stack.push(new JS.FnCall('Math.ceiling', [stack.pop()]));
+					else if(c == 'c') stack.push(new JS.FnCall('Math.ceil', [stack.pop()]));
 					else if(c == 'd') dup(vars, stack, fn);
 					else if(c == 'e') t = stack.pop(), stack.push(new JS.BinOp('*', stack.pop(), new JS.FnCall('Math.pow', [new JS.Number('10'), t])));
 					else if(c == 'f') stack.push(new JS.FnCall('Math.floor', [stack.pop()]));
@@ -312,7 +312,7 @@ var Wortel = (function() {
 					else if(c == 't') t = stack.pop(), stack.push(new JS.BinOp('>=', stack.pop(), t));
 					else if(c == 'u') t = stack.pop(), stack.push(new JS.BinOp('<=', stack.pop(), t));
 					else if(c == 'v') stack.push(new JS.FnCall('Math.sqrt', [stack.pop()]));
-					else if(c == 'w') ;
+					else if(c == 'w') stack.push(new JS.FnCall('Math.random', []));
 					else if(c == 'x') t = stack.pop(), stack.push(new JS.BinOp('^', stack.pop(), t));
 					else if(c == 'y') t = [stack.pop(), stack.pop(), stack.pop()], stack.push(t[1], t[0], t[2]);
 					else if(c == 'z') t = [stack.pop(), stack.pop(), stack.pop()], stack.push(t[0], t[2], t[1]);
@@ -338,7 +338,7 @@ var Wortel = (function() {
 					else if(c == 'T') stack.push(new JS.BinOp('*', stack.pop(), new JS.Number('10')));
 					else if(c == 'U') stack.push(new JS.UnOp('-', stack.pop()));
 					else if(c == 'V') addLib('_sq'), stack.push(new JS.FnCall('_sq', [stack.pop()]));
-					else if(c == 'W') ;
+					else if(c == 'W') stack.push(new JS.BinOp('*', new JS.FnCall('Math.random', []), stack.pop()));
 					else if(c == 'X') stack.push(x);
 					else if(c == 'Y') stack.push(y);
 					else if(c == 'Z') stack.push(z);
