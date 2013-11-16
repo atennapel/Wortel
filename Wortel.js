@@ -1482,6 +1482,7 @@ var Wortel = (function() {
 				new JS.Prefix('return ', r)
 			], true);
 		})(),
+		'_ida': new JS.Fn('', [], [new JS.Prefix('return ', new JS.FnCall('Array.prototype.slice.call', [new JS.Name('arguments')]))]),
 	};
 	function addLibTo(obj) {
 		for(var k in Lib) obj[k] = eval('('+Lib[k].compile()+')');
@@ -1603,6 +1604,7 @@ var Wortel = (function() {
 		'@enum': '_enum',
 		'@gcd': '_gcd',
 		'@lcm': '_lcm',
+		'@,': '_ida',
 	};
 
 	function wrap(a) {return a instanceof JS.Array? a.val: [a]};
