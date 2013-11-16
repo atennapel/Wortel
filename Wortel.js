@@ -1,17 +1,17 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.67.5
-	@date: 2013-11-13
+	@version: 0.67.6
+	@date: 2013-11-16
 */
 
 var Wortel = (function() {
-	var version = '0.67.5';
+	var version = '0.67.6';
 	var _randN = 0;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
 	// Parser
 	var symbols = '~`!@#%^&*-+=|\\:?/><,';
-	var quoteSymbols = ['\\', '\\\\', '^', '%^', '*^', '/^', '+^'];
+	var quoteSymbols = ['\\', '&\\', '\\\\', '^', '%^', '*^', '/^', '+^'];
 	var groupQuoter = ['@', '@@'];
 	function isSymbol(c) {return symbols.indexOf(c) != -1};
 	var brackets = '()[]{}';
@@ -1741,7 +1741,7 @@ var Wortel = (function() {
 			else return new JS.MethodCall(fn, 'apply', [new JS.Name('this'), list]);
 		},
 		'&!': function(a, b) {return new JS.FnCall('_fnarr', [a, b])},
-		'\\': function(bl, arg) {
+		'&\\': function(bl, arg) {
 			if(arg instanceof JS.Array) {
 				var vars = arg.val.filter(function(x) {return x instanceof JS.Name && x.val == '.'}).map(randVar);
 				var n = 0;
@@ -1764,6 +1764,16 @@ var Wortel = (function() {
 						return new JS.ExprFn('', [o], new JS.MethodCall(o, new JS.Name(bl.val.slice(1)), [arg]));
 				} else return new JS.MethodCall(bl, 'bind', [new JS.Name('this'), arg]);
 			}
+		},
+		'\\': function(bl, arg) {
+			if(bl instanceof JS.Block) {
+				checkLib(bl.val);
+				for(var i = 0, n = operators[bl.val].length-1, args = []; i < n; i++) args.push(randVar());
+				return new JS.ExprFn('', args, new JS.Block(bl.val, [arg].concat(args), false, bl.reversed));
+			} else if(bl instanceof JS.Name && bl.val[0] == '.') {
+					var o = randVar();
+					return new JS.ExprFn('', [o], new JS.MethodCall(o, new JS.Name(bl.val.slice(1)), [arg]));
+			} else return new JS.MethodCall(bl, 'bind', [new JS.Name('this'), arg]);
 		},
 		'\\\\': function(f) {
 			return new JS.ExprFn('', [new JS.Name('x')], operators['\\'](f, new JS.Name('x')));
