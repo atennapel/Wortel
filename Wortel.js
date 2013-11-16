@@ -1087,7 +1087,7 @@ var Wortel = (function() {
 			return new JS.Fn('_rangef', [b, f, w], [
 				new JS.Prefix('var ', new JS.Assigment([
 					r, new JS.Ternary([new JS.FnCall('Array.isArray', [b]), b, new JS.Array([b])]),
-					l, new JS.UnOp('-', new JS.Prop(f, len)),
+					l, new JS.UnOp('-', new JS.BinOp('||', new JS.Prop(f, len), new JS.Number('1'))),
 					i, new JS.BinOp('-', new JS.Prop(r, len), new JS.Number('1'))
 				])),
 				new JS.While(new JS.FnCall(w, [new JS.Index(r, new JS.BinOp('-', new JS.Prop(r, len), new JS.Number('1'))), i, r]), new JS.Array([
