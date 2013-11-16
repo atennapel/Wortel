@@ -1447,6 +1447,41 @@ var Wortel = (function() {
 				new JS.Prefix('return ', new JS.BinOp('*', b, new JS.BinOp('/', a, new JS.FnCall('_gcd', [a, b]))))
 			], true);
 		})(),
+		'_scanl0': (function() {
+			var f = new JS.Name('f'),
+					a = new JS.Name('a'),
+					r = new JS.Name('r'),
+					l = new JS.Name('l'),
+					i = new JS.Name('i');
+			return new JS.Fn('_scanl0', [f, a], [
+				new JS.For(new JS.Prefix('var ', new JS.Assigment([
+						r, new JS.Array([new JS.Index(a, new JS.Number('0'))]),
+						i, new JS.Number('1'),
+						l, new JS.Prop(a, new JS.Name('length'))
+				])), new JS.BinOp('<', i, l), new JS.Suffix('++', i), new JS.Array([
+					new JS.FnCall('r.push', [new JS.FnCall('f', [new JS.Index(r, new JS.BinOp('-', i, new JS.Number('1'))), new JS.Index(a, i)])])	
+				])),
+				new JS.Prefix('return ', r)
+			], true);
+		})(),
+		'_scanl': (function() {
+			var f = new JS.Name('f'),
+					a = new JS.Name('a'),
+					v = new JS.Name('v'),
+					r = new JS.Name('r'),
+					l = new JS.Name('l'),
+					i = new JS.Name('i');
+			return new JS.Fn('_scanl', [f, v, a], [
+				new JS.For(new JS.Prefix('var ', new JS.Assigment([
+						r, new JS.Array([v]),
+						i, new JS.Number('0'),
+						l, new JS.Prop(a, new JS.Name('length'))
+				])), new JS.BinOp('<', i, l), new JS.Suffix('++', i), new JS.Array([
+					new JS.FnCall('r.push', [new JS.FnCall('f', [new JS.Index(r, i), new JS.Index(a, i)])])	
+				])),
+				new JS.Prefix('return ', r)
+			], true);
+		})(),
 	};
 	function addLibTo(obj) {
 		for(var k in Lib) obj[k] = eval('('+Lib[k].compile()+')');
@@ -1464,6 +1499,8 @@ var Wortel = (function() {
 		'@til': ['_range'],
 		'@range': ['_range'],
 		'@rangef': ['_rangef'],
+		'@scan': ['_scanl'],
+		'!//': ['_scanl0'],
 		'@last': ['_last'],
 		'@rev': ['_rev'],
 		'@sort': ['_sort'],
@@ -1549,6 +1586,8 @@ var Wortel = (function() {
 		'@eq': '_eq',
 		'@neq': '_neq',
 		'@id': '_id',
+		'@scan': '_scanl',
+		'!//': '_scanl0',
 		'@count': '_count',
 		'!^': '_powf',
 		'@vals': '_vals',
@@ -1804,6 +1843,8 @@ var Wortel = (function() {
 		'!/': function(fn, a) {return new JS.MethodCall(a, 'reduce', [fn])},
 		'!-': function(fn, a) {return new JS.MethodCall(a, 'filter', [fn])},
 		'!^': function(f, n, a) {return new JS.FnCall('_powf', [f, n, a])},
+		'!//': function(f, a) {return new JS.FnCall('_scanl0', [f, a])},
+		'@scan': function(f, v, a) {return new JS.FnCall('_scanl', [f, v, a])},
 
 		'!><': function(f, a, b) {return new JS.FnCall('_mapm', [f, new JS.Array([a, b])])},	
 		'!<<': function(f, a, b) {return new JS.FnCall('_mapm', [f, new JS.Array([new JS.FnCall('_upgrade', [b, a]), b])])},	
