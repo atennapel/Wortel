@@ -1090,7 +1090,7 @@ var Wortel = (function() {
 					l, new JS.UnOp('-', new JS.Prop(f, len)),
 					i, new JS.BinOp('-', new JS.Prop(r, len), new JS.Number('1'))
 				])),
-				new JS.While(new JS.FnCall(w, [new JS.Index(r, new JS.BinOp('-', new JS.Prop(r, len), new JS.Number('1'))), i]), new JS.Array([
+				new JS.While(new JS.FnCall(w, [new JS.Index(r, new JS.BinOp('-', new JS.Prop(r, len), new JS.Number('1'))), i, r]), new JS.Array([
 					new JS.FnCall('r.push', [new JS.FnCall('f.apply', [new JS.Name('this'), new JS.FnCall('r.slice', [l])])]),
 					new JS.BinOp('+=', i, new JS.Number('1'))
 				])),
