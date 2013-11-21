@@ -159,7 +159,7 @@ var Wortel = (function() {
 		if(sub) 
 			return astc.join(';');
 	 	else {
-			for(var k in globalVars) vars.push(k, globalVars[k]);
+			for(var k in globalVars) vars.push(new JS.Name(k), globalVars[k]);
 			for(var k in curLibs) lib.push(Lib[k].compile());
 			return '(function(){'+[new JS.Prefix('var ', new JS.Assigment(vars)).compile()]
 				.concat(lib).concat(astc).filter(function(x) {return x}).join(';')+'})()';
