@@ -1858,6 +1858,9 @@ var Wortel = (function() {
 		'!//': function(f, a) {return new JS.FnCall('_scanl0', [f, a])},
 		'@scan': function(f, v, a) {return new JS.FnCall('_scanl', [f, v, a])},
 
+		'&?': function(a, b) {return new JS.BinOp('!=', new JS.MethodCall(b, 'indexOf', [a]), new JS.Number('1'))},
+		'&@': function(a, b) {return new JS.MethodCall(b, 'indexOf', [a])},
+
 		'!><': function(f, a, b) {return new JS.FnCall('_mapm', [f, new JS.Array([a, b])])},	
 		'!<<': function(f, a, b) {return new JS.FnCall('_mapm', [f, new JS.Array([new JS.FnCall('_upgrade', [b, a]), b])])},	
 		'!>>': function(f, a, b) {return new JS.FnCall('_mapm', [f, new JS.Array([a, new JS.FnCall('_upgrade', [a, b])])])},
