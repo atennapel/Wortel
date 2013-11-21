@@ -1908,6 +1908,7 @@ var Wortel = (function() {
 		'@scan': function(f, v, a) {return new JS.FnCall('_scanl', [f, v, a])},
 
 		'&?': function(a, b) {return new JS.BinOp('!=', new JS.FnCall('_indexOf', [a, b]), new JS.UnOp('-', new JS.Number('1')))},
+		'!&?': function(a, b) {return new JS.BinOp('==', new JS.FnCall('_indexOf', [a, b]), new JS.UnOp('-', new JS.Number('1')))},
 		'&@': function(a, b) {return new JS.FnCall('_indexOf', [a, b])},
 
 		'!><': function(f, a, b) {return new JS.FnCall('_mapm', [f, new JS.Array([a, b])])},	
@@ -1963,7 +1964,20 @@ var Wortel = (function() {
 			var name = x instanceof JS.Name? x: randVar();
 			for(var i = 0, a = o.val, l = a.length, r = []; i < l; i += 2) {
 				var k = a[i], v = a[i+1];
-				if(v !== undefined) r.push(new JS.BinOp('==', name, k), v);
+				if(v !== undefined) r.push(new JS.FnCall('_eq_', [name, k]), v);
+				else r.push(k);
+			}
+			if(x instanceof JS.Name)
+				return new JS.Ternary(r);
+			else
+				return new JS.FnCall(new JS.Fn('', [], [new JS.Prefix('var ', new JS.Assigment([name, x])), new JS.Prefix('return ', new JS.Ternary(r))]), []);
+		},
+		'@??': function(x, o) {
+			addLib('_eq');
+			var name = x instanceof JS.Name? x: randVar();
+			for(var i = 0, a = o.val, l = a.length, r = []; i < l; i += 2) {
+				var k = a[i], v = a[i+1];
+				if(v !== undefined) r.push(new JS.FnCall('_eq', [name, k]), v);
 				else r.push(k);
 			}
 			if(x instanceof JS.Name)
