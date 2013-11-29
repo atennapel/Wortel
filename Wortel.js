@@ -3,7 +3,7 @@
 	@version: 0.67.6
 	@date: 2013-11-16
 
-	TODO: uniqf and group
+	TODO: uniqf, group, firsti, reshape and shape
 */
 
 var Wortel = (function() {
