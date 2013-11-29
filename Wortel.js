@@ -2,6 +2,8 @@
 	@author: Albert ten Napel
 	@version: 0.67.6
 	@date: 2013-11-16
+
+	TODO: uniqf and group
 */
 
 var Wortel = (function() {
@@ -155,14 +157,12 @@ var Wortel = (function() {
 
 	// Compilation
 	function toJS(ast, sub) {
-		var vars = [], lib = [], astc = ast.map(mCompile).filter(function(x) {return x});
+		var lib = [], astc = ast.map(mCompile).filter(function(x) {return x});
 		if(sub) 
 			return astc.join(';');
 	 	else {
-			for(var k in globalVars) vars.push(new JS.Name(k), globalVars[k]);
 			for(var k in curLibs) lib.push(Lib[k].compile());
-			return '(function(){'+[new JS.Prefix('var ', new JS.Assigment(vars)).compile()]
-				.concat(lib).concat(astc).filter(function(x) {return x}).join(';')+'})()';
+			return '(function(){'+lib.concat(astc).filter(function(x) {return x}).join(';')+'})()';
 		}
 	};
 
@@ -682,8 +682,6 @@ var Wortel = (function() {
 	};
 
 	// Lib
-	var globalVars = {
-	};
 	var Lib = {
 		'_extends': (function() {
 			var a = new JS.Name('a'),
@@ -1487,7 +1485,6 @@ var Wortel = (function() {
 		'_ida': new JS.Fn('', [], [new JS.Prefix('return ', new JS.FnCall('Array.prototype.slice.call', [new JS.Name('arguments')]))]),
 	};
 	function addLibTo(obj) {
-		for(var k in globalVars) obj[k] = eval('('+globalVars[k].compile()+')');
 		for(var k in Lib) obj[k] = eval('('+Lib[k].compile()+')');
 	};
 	var curLibs = {};
