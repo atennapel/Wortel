@@ -13,7 +13,7 @@ var Wortel = (function() {
 		
 	// Parser
 	var symbols = '~`!@#%^&*-+=|\\:?/><,';
-	var quoteSymbols = ['\\', '&\\', '\\\\', '^', '%^', '*^', '/^', '+^'];
+	var quoteSymbols = ['\\', '&\\', '\\\\', '^', '%^', '*^', '/^', '+^', '%!'];
 	var groupQuoter = ['@', '@@'];
 	function isSymbol(c) {return symbols.indexOf(c) != -1};
 	var brackets = '()[]{}';
@@ -1329,6 +1329,9 @@ var Wortel = (function() {
 				new JS.Prefix('return ', new JS.Name('false'))
 			], true);
 		})(),
+		'_reflex': new JS.Fn('_reflex', [new JS.Name('f'), new JS.Name('x')], [
+			new JS.Prefix('return ', new JS.FnCall(new JS.Name('f'), [new JS.Name('x'), new JS.Name('x')]))
+		], true),
 		'_upgrade': (function() {
 			var a = new JS.Name('a'),
 					b = new JS.Name('b'),
@@ -1556,6 +1559,7 @@ var Wortel = (function() {
 		'!<>': ['_mapm', '_upgrade', '_wrap', '_upgradeb'],
 		'@enum': ['_vals', '_zip'],
 		'&!': ['_wrap', '_fnarr'],
+		'%!': ['_reflex'],
 	};
 	var opToLib = {
 		'@%': '_mod',
@@ -1609,6 +1613,7 @@ var Wortel = (function() {
 		'@gcd': '_gcd',
 		'@lcm': '_lcm',
 		'@,': '_ida',
+		'%!': '_reflex',
 	};
 
 	function wrap(a) {return a instanceof JS.Array? a.val: [a]};
@@ -2237,6 +2242,12 @@ var Wortel = (function() {
 			} else {
 				return new JS.ExprFn('', [id], new JS.FnCall(bl, [id, id]));
 			}
+		},
+		'%!': function(f, x) {
+			if(f instanceof JS.Block && f.quoted) {
+				checkLib(f.val);
+				return new JS.FnCall('_reflex', [operators['^'](f), x])
+			} else return new JS.FnCall('_reflex', [f, x]);
 		},
 		'/^': function(bl) {
 			var arr = randVar();
