@@ -1,13 +1,13 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.67.6
-	@date: 2013-11-16
+	@version: 0.67.7
+	@date: 2013-12-3
 
-	TODO: uniqf, group, firsti, reshape and shape
+	TODO: uniqf, group, firsti, reshape, shape, pset
 */
 
 var Wortel = (function() {
-	var version = '0.67.6';
+	var version = '0.67.7';
 	var _randN = 0;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
@@ -346,6 +346,10 @@ var Wortel = (function() {
 					else if(c == 'Z') stack.push(z);
 					else if(c == 'kg') addLib('_gcd'), t = stack.pop(), stack.push(new JS.FnCall('_gcd', [stack.pop(), t]));
 					else if(c == 'km') addLib('_gcd'), addLib('_lcm'), t = stack.pop(), stack.push(new JS.FnCall('_lcm', [stack.pop(), t]));
+					else if(c == 'kI') addLib('_range'), stack.push(new JS.FnCall('_range', [new JS.Array([new JS.Number('1'), stack.pop()])]));
+					else if(c == 'ki') addLib('_range'), stack.push(new JS.FnCall('_range', [new JS.Array([new JS.Number('0'), new JS.BinOp('-', stack.pop(), new JS.Number('1'))])]));
+					else if(c == 'ks') addLib('_sum'), stack.push(new JS.FnCall('_sum', [stack.pop()]));
+					else if(c == 'kp') addLib('_prod'), stack.push(new JS.FnCall('_prod', [stack.pop()]));
 				}
 			}
 		}

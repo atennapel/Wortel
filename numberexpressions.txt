@@ -50,3 +50,9 @@ W rand to n
 X var x
 Y var y
 Z var z
+ki 0..n-1
+kI 1..n
+ks sum
+kp product
+kg gcd
+km lcm
