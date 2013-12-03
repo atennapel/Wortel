@@ -157,12 +157,13 @@ var Wortel = (function() {
 
 	// Compilation
 	function toJS(ast, sub) {
-		var lib = [], astc = ast.map(mCompile).filter(function(x) {return x});
+		var lib = [], vars, astc = ast.map(mCompile).filter(function(x) {return x});
 		if(sub) 
 			return astc.join(';');
 	 	else {
 			for(var k in curLibs) lib.push(Lib[k].compile());
-			return '(function(){'+lib.concat(astc).filter(function(x) {return x}).join(';')+'})()';
+			vars = Vars.length > 0? 'var ' + Vars.map(mCompile).join(','): '';
+			return '(function(){'+lib.concat([vars]).concat(astc).filter(function(x) {return x}).join(';')+'})()';
 		}
 	};
 
@@ -686,6 +687,7 @@ var Wortel = (function() {
 	};
 
 	// Lib
+	var Vars = [];
 	var Lib = {
 		'_extends': (function() {
 			var a = new JS.Name('a'),
@@ -1899,7 +1901,7 @@ var Wortel = (function() {
 		'@super': function(args) {return new JS.FnCall('_super.call', [new JS.Name('this')].concat(wrap(args)))},
 		// binary
 		'@if': function(c, b) {return new JS.If([c, b])},
-		':': function(k, v) {return new JS.Assigment([k, v])},
+		':': function(k, v) {return new JS.Group([new JS.Assigment([k, v])])},
 		':!': function(o) {
 			if(o instanceof JS.Block) {
 				if(o.val == '!')
