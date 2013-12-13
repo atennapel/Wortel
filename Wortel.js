@@ -1,13 +1,13 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.67.8
+	@version: 0.67.9
 	@date: 2013-12-13
 
 	TODO: uniqf, group, firsti, reshape, shape, pset
 */
 
 var Wortel = (function() {
-	var version = '0.67.8';
+	var version = '0.67.9';
 	var _randN = 0;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
@@ -1650,7 +1650,9 @@ var Wortel = (function() {
 		'@in': function(x, y) {return new JS.BinOp(' in ', x, y)},
 		'-': function(x, y) {return new JS.BinOp('-', x, y)},
 		'*': function(x, y) {return new JS.BinOp('*', x, y)},
+		'@*': function(x, y) {return new JS.FnCall('Math.floor', [new JS.BinOp('*', x, y)])},
 		'/': function(x, y) {return new JS.BinOp('/', x, y)},
+		'@/': function(x, y) {return new JS.FnCall('Math.floor', [new JS.BinOp('/', x, y)])},
 		'%': function(x, y) {return new JS.BinOp('%', x, y)},
 		'%%': function(x, y) {return new JS.BinOp('==', new JS.BinOp('%', x, y), new JS.Number(0))},
 		'!%': function(x, y) {return new JS.BinOp('!=', new JS.BinOp('%', x, y), new JS.Number(0))},
