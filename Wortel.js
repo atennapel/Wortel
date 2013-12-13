@@ -1,13 +1,13 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.67.7
-	@date: 2013-12-3
+	@version: 0.67.8
+	@date: 2013-12-13
 
 	TODO: uniqf, group, firsti, reshape, shape, pset
 */
 
 var Wortel = (function() {
-	var version = '0.67.7';
+	var version = '0.67.8';
 	var _randN = 0;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
@@ -2282,12 +2282,19 @@ var Wortel = (function() {
 		}
 	};
 
+	function runTags() {
+		for(var i = 0, a = document.getElementsByTagName('script'), l = a.length; i < l; i++)
+			if(a[i].type.toLowerCase() == 'text/wortel')
+				eval(compile(a[i].innerHTML))
+	};
+
 	return {
 		compile: compile,
 		parse: parse,
 		version: version,
 		addLibTo: addLibTo,
-		formatValue: formatValue
+		formatValue: formatValue,
+		runTags: runTags
 	};
 })();
 
