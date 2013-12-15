@@ -106,7 +106,7 @@ var Wortel = (function() {
 				if(c.type == cb) level++;
 				else if(c.type == otherBracket(cb) && --level == 0)
 					r.splice(ind, i-ind+1, {type: cb, val: groupBrackets(r.slice(ind+1, i)).map(function(x) {
-						if(cq && x.type == 'symbol' && groupQuoter.indexOf(x.val) == -1) {
+						if(cq && x.type == 'symbol' && groupQuoter.indexOf(x.val) == -1 && quoteSymbols.indexOf(x.val) == -1) {
 							x.quoted = true;
 						}
 						return x;
