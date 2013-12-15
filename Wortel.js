@@ -1,13 +1,13 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.67.9
-	@date: 2013-12-13
+	@version: 0.68.0
+	@date: 2013-12-15
 
 	TODO: uniqf, group, firsti, reshape, shape, pset
 */
 
 var Wortel = (function() {
-	var version = '0.67.9';
+	var version = '0.68.0';
 	var _randN = 0;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
@@ -1757,8 +1757,12 @@ var Wortel = (function() {
 			else return new JS.MethodCall(fn, 'apply', [new JS.Name('this'), list]);
 		},
 		'&!': function(a, b) {return new JS.FnCall('_fnarr', [a, b])},
+		'+!': function(f) {return new JS.FnCall(f, [])},
 		'&\\': function(bl, arg) {
 			if(arg instanceof JS.Array) {
+				if(bl instanceof JS.Block && arg.val.length < operators[bl.val].length)
+					for(var i = 0, nn = operators[bl.val].length - arg.val.length; i < nn; i++)
+						arg.val.push(new JS.Name('.'));
 				var vars = arg.val.filter(function(x) {return x instanceof JS.Name && x.val == '.'}).map(randVar);
 				var n = 0;
 				var args = arg.val.map(function(x) {return x instanceof JS.Name && x.val == '.'? vars[n++]: x});
@@ -1766,10 +1770,12 @@ var Wortel = (function() {
 					if(args.length != operators[bl.val].length)
 						throw 'Invalid length for partial application of '+bl.val+'.';
 					return new JS.ExprFn('', vars, new JS.Block(bl.val, args, false, bl.reversed));
-				} else if(bl instanceof JS.Name && bl.val[0] == '.') {
+				} else {
+					if(bl instanceof JS.Name && bl.val[0] == '.') {
 						var o = randVar();
 						return new JS.ExprFn('', [o].concat(vars), new JS.MethodCall(o, new JS.Name(bl.val.slice(1)), args));
-				} else return new JS.ExprFn('', vars, new JS.FnCall(bl, args));
+					} else return new JS.ExprFn('', vars, new JS.FnCall(bl, args));
+				}
 			} else {
 				if(bl instanceof JS.Block) {
 					checkLib(bl.val);
