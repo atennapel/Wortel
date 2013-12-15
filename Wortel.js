@@ -1,13 +1,13 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.68.3
+	@version: 0.68.4
 	@date: 2013-12-15
 
 	TODO: uniqf, group, firsti, reshape, shape, pset
 */
 
 var Wortel = (function() {
-	var version = '0.68.3';
+	var version = '0.68.4';
 	var _randN = 0;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
@@ -1155,8 +1155,37 @@ var Wortel = (function() {
 			new JS.Prefix('return ', new JS.MethodCall(new JS.MethodCall(new JS.Array([]), 'concat', [new JS.Name('a')]), 'sort', [new JS.Name('f')]))
 		], true),
 		'_index': new JS.Fn('_index', [new JS.Name('i'), new JS.Name('a')], [
+			new JS.If([
+				new JS.FnCall('Array.isArray', [new JS.Name('i')]), new JS.Prefix('return ', new JS.MethodCall(new JS.Name('i'), 'map', [
+					new JS.ExprFn('', [new JS.Name('x')], new JS.FnCall('_index', [new JS.Name('x'), new JS.Name('a')]))]))
+			]),
 			new JS.Prefix('return ', new JS.Index(new JS.Name('a'), new JS.FnCall('_mod', [new JS.Name('i'), new JS.Prop(new JS.Name('a'), new JS.Name('length'))])))
 		], true),
+		'_repl': (function() {
+			var a = new JS.Name('a'),
+					b = new JS.Name('b'),
+					i = new JS.Name('i'),
+					j = new JS.Name('j'),
+					r = new JS.Name('r'),
+					len = new JS.Name('length'),
+					l = new JS.Name('l');
+			return new JS.Fn('_repl', [a, b], [
+				new JS.Prefix('var ', new JS.Assigment([
+					l, new JS.FnCall('Math.min', [new JS.Prop(a, len), new JS.Prop(b, len)])
+				])),
+				new JS.For(new JS.Prefix('var ', new JS.Assigment([
+					i, new JS.Number('0'),
+					r, new JS.Array([])
+				])), new JS.BinOp('<', i, l), new JS.Suffix('++', i), new JS.Array([
+					new JS.For(new JS.Prefix('var ', new JS.Assigment([
+						j, new JS.Number('0')
+					])), new JS.BinOp('<', j, new JS.Index(a, i)), new JS.Suffix('++', j), new JS.Array([
+						new JS.FnCall('r.push', [new JS.Index(b, i)])
+					]))
+				])),
+				new JS.Prefix('return ', r)
+			], true);
+		})(),
 		'_mem': (function() {
 			var f = new JS.Name('f'),
 					c = new JS.Name('c'),
@@ -1627,6 +1656,7 @@ var Wortel = (function() {
 		'@maxf': ['_maxf'],
 		'@minf': ['_minf'],
 		'@`': ['_mod', '_index'],
+		'@repl': ['_repl'],
 		'@eq': ['_eq'],
 		'@neq': ['_eq', '_neq'],
 		'@id': ['_id'],
@@ -1691,6 +1721,7 @@ var Wortel = (function() {
 		'@minl': '_minl',
 		'@maxf': '_maxf',
 		'@minf': '_minf',
+		'@repl': '_repl',
 		'@`': '_index',
 		'@eq': '_eq',
 		'@neq': '_neq',
@@ -1972,6 +2003,7 @@ var Wortel = (function() {
 		'@cart': function(a, b) {return new JS.FnCall('_cart', [a, b])},
 		'@part': function(n, a) {return new JS.FnCall('_part', [n, a])},
 		'@rep': function(n, v) {return new JS.FnCall('_rep', [n, v])},
+		'@repl': function(n, v) {return new JS.FnCall('_repl', [n, v])},
 		'@each': function(fn, a) {return new JS.MethodCall(a, 'forEach', [fn])},
 		',': function(a, b) {return new JS.MethodCall(new JS.FnCall('_wrap', [a]), 'concat', [b])},
 		'@,': function(a, b) {return new JS.Array([a, b])},
