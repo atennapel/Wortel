@@ -1,13 +1,13 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.68.1
+	@version: 0.68.2
 	@date: 2013-12-15
 
 	TODO: uniqf, group, firsti, reshape, shape, pset
 */
 
 var Wortel = (function() {
-	var version = '0.68.1';
+	var version = '0.68.2';
 	var _randN = 0;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
@@ -2274,8 +2274,9 @@ var Wortel = (function() {
 			}
 			throw 'Unknown @for type: '+type;
 		},
-		'@class': function(name, arg, body) {
-			var args = arg instanceof JS.Array || arg instanceof JS.Group || arg instanceof JS.Object? arg.val: [arg];
+		'@class': function(arg, body) {
+			var name = arg instanceof JS.Name? arg: arg.val.splice(0, 1)[0];
+			var args = arg instanceof JS.Name? []: arg instanceof JS.Array || arg instanceof JS.Group || arg instanceof JS.Object? arg.val: [arg];
 			var paren = !(arg instanceof JS.Object)? args[0]: false;
 			var mixins = arg instanceof JS.Object? args: args.slice(1);
 			if(mixins.length == 0) mixins = false;

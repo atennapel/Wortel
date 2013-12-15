@@ -1,5 +1,5 @@
 ; simple class
-@class Person[] {
+@class Person {
 	[name age]
 	getName &[] ^name
 	getAge &[] ^age
@@ -7,13 +7,13 @@
 }
 
 ; simple inheritance
-@class Worker[Person] {
+@class [Worker Person] {
 	[name age]
 	work @&[] !console.log 'Working.'
 }
 
 ; calling the super constructor
-@class Worker2[Worker] {
+@class [Worker2 Worker] {
 	@&[name age job] [
 		@super [name age]
 		:^job job
@@ -38,13 +38,13 @@ p.work. w.work. w2.work.
 	walk &[] "I'm walking."
 }
 
-@class Walker [Person Walks] {
+@class [Walker Person Walks] {
 	[name age]
 }
 
 !console.log `!.walk [] @new Walker['a' 10]
 
 ; class with only mixins
-@class Walker2 {Walks} {}
+@class {Walker2 Walks} {}
 
 !console.log `!.walk [] @new Walker2[]
