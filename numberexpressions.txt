@@ -56,3 +56,8 @@ ks sum
 kp product
 kg gcd
 km lcm
+kS sin
+kC cos
+kT tan
+ka atan
+kA atan2

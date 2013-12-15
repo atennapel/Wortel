@@ -1,13 +1,13 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.68.0
+	@version: 0.68.1
 	@date: 2013-12-15
 
 	TODO: uniqf, group, firsti, reshape, shape, pset
 */
 
 var Wortel = (function() {
-	var version = '0.68.0';
+	var version = '0.68.1';
 	var _randN = 0;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
@@ -351,6 +351,11 @@ var Wortel = (function() {
 					else if(c == 'ki') addLib('_range'), stack.push(new JS.FnCall('_range', [new JS.Array([new JS.Number('0'), new JS.BinOp('-', stack.pop(), new JS.Number('1'))])]));
 					else if(c == 'ks') addLib('_sum'), stack.push(new JS.FnCall('_sum', [stack.pop()]));
 					else if(c == 'kp') addLib('_prod'), stack.push(new JS.FnCall('_prod', [stack.pop()]));
+					else if(c == 'kS') stack.push(new JS.FnCall('Math.sin', [stack.pop()]));
+					else if(c == 'kC') stack.push(new JS.FnCall('Math.cos', [stack.pop()]));
+					else if(c == 'kT') stack.push(new JS.FnCall('Math.tan', [stack.pop()]));
+					else if(c == 'ka') stack.push(new JS.FnCall('Math.atan', [stack.pop()]));
+					else if(c == 'kA') t = stack.pop(), stack.push(new JS.FnCall('Math.atan2', [stack.pop(), t]));
 				}
 			}
 		}
@@ -1492,6 +1497,91 @@ var Wortel = (function() {
 			], true);
 		})(),
 		'_ida': new JS.Fn('', [], [new JS.Prefix('return ', new JS.FnCall('Array.prototype.slice.call', [new JS.Name('arguments')]))]),
+		'_isPrime': (function() {
+			var n = new JS.Name('n'),
+					x = new JS.Name('x'),
+					s = new JS.Name('s');
+			return new JS.Fn('_isPrime', [n], [
+				new JS.If([
+					new JS.BinOp('<', n, new JS.Number('2')), new JS.Prefix('return ', new JS.Name('false')),
+					new JS.BinOp('==', n, new JS.Number('2')), new JS.Prefix('return ', new JS.Name('true')),
+					new JS.BinOp('==', new JS.Number('0'), new JS.BinOp('%', n, new JS.Number('2'))), new JS.Prefix('return ', new JS.Name('false')),
+					new JS.For(new JS.Prefix('var ', new JS.Assigment([
+							x, new JS.Number('3'),
+							s, new JS.FnCall('Math.sqrt', [n])
+					])), new JS.BinOp('<=', x, s), new JS.BinOp('+=', x, new JS.Number('2')), new JS.Array([
+						new JS.If([
+							new JS.BinOp('==', new JS.Number('0'), new JS.BinOp('%', n, x)), new JS.Prefix('return ', new JS.Name('false'))
+						])
+					]))
+				]),
+				new JS.Prefix('return ', new JS.Name('true'))
+			], true);
+		})(),
+		'_nextPrime': (function() {
+			var n = new JS.Name('n');
+			return new JS.Fn('_nextPrime', [n], [
+				new JS.If([
+					new JS.BinOp('<', n, new JS.Number('2')), new JS.Prefix('return ', new JS.Number('2')),
+					new JS.BinOp('==', new JS.Number('0'), new JS.BinOp('%', n, new JS.Number('2'))), new JS.Suffix('--', n)
+				]),
+				new JS.While(new JS.UnOp('!', new JS.FnCall('_isPrime', [new JS.BinOp('+=', n, new JS.Number('2'))])), new JS.Array([])),
+				new JS.Prefix('return ', n)
+			], true);
+		})(),
+		'_prevPrime': (function() {
+			var n = new JS.Name('n');
+			return new JS.Fn('_prevPrime', [n], [
+				new JS.If([
+					new JS.BinOp('<', n, new JS.Number('3')), new JS.Prefix('return ', new JS.Number('0')),
+					new JS.BinOp('==', n, new JS.Number('3')), new JS.Prefix('return ', new JS.Number('2')),
+					new JS.BinOp('==', new JS.Number('0'), new JS.BinOp('%', n, new JS.Number('2'))), new JS.Suffix('++', n)
+				]),
+				new JS.While(new JS.UnOp('!', new JS.FnCall('_isPrime', [new JS.BinOp('-=', n, new JS.Number('2'))])), new JS.Array([])),
+				new JS.Prefix('return ', n)
+			], true);
+		})(),
+		'_primes': (function() {
+			var n = new JS.Name('n'),
+					a = new JS.Name('a'),
+					u = new JS.Name('u'),
+					r = new JS.Name('r'),
+					i = new JS.Name('i'),
+					j = new JS.Name('j');
+			return new JS.Fn('_primes', [n], [
+				new JS.Prefix('var ', new JS.Assigment([
+					a, new JS.Array([]),
+					r, new JS.Array([]),
+					u, new JS.FnCall('Math.sqrt', [n])
+				])),
+				new JS.Prefix('var ', new JS.CommaList([i, j])),
+				new JS.For(new JS.Assigment([i, new JS.Number('0')]),
+					new JS.BinOp('<', i, n), new JS.Suffix('++', i), new JS.Array([
+						new JS.FnCall('a.push', [new JS.Name('true')])
+					])),
+				new JS.For(new JS.Assigment([i, new JS.Number('2')]),
+					new JS.BinOp('<=', i, u), new JS.Suffix('++', i), new JS.Array([
+						new JS.If([
+							new JS.Index(a, i),
+							new JS.For(new JS.Assigment([
+								j, new JS.BinOp('*', i, i)
+							]), new JS.BinOp('<', j, n), new JS.BinOp('+=', j, i), new JS.Array([
+								new JS.Assigment([
+									new JS.Index(a, j), new JS.Name('false')
+								])
+							]))
+						])
+					])),
+				new JS.For(new JS.Assigment([i, new JS.Number('2')]),
+					new JS.BinOp('<', i, n), new JS.Suffix('++', i), new JS.Array([
+						new JS.If([
+							new JS.Index(a, i),
+							new JS.FnCall('r.push', [i])
+						])
+					])),
+				new JS.Prefix('return ', r)
+			], true);
+		})(),
 	};
 	function addLibTo(obj) {
 		for(var k in Lib) obj[k] = eval('('+Lib[k].compile()+')');
@@ -1545,6 +1635,10 @@ var Wortel = (function() {
 		',': ['_wrap'],
 		'@gcd': ['_gcd'],
 		'@lcm': ['_gcd', '_lcm'],
+		'@isPrime': ['_isPrime'],
+		'@primes': ['_primes'],
+		'@nextPrime': ['_isPrime', '_nextPrime'],
+		'@prevPrime': ['_isPrime', '_prevPrime'],
 		'@all': ['_all'],
 		'@vals': ['_vals'],
 		'@any': ['_any'],
@@ -1580,6 +1674,10 @@ var Wortel = (function() {
 		'@flat': '_flat',
 		'@wrap': '_wrap',
 		'@sum': '_sum',
+		'@isPrime': '_isPrime',
+		'@primes': '_primes',
+		'@nextPrime': '_nextPrime',
+		'@prevPrime': '_prevPrime',
 		'@mem': '_mem',
 		'@prod': '_prod',
 		'@rep': '_rep',
@@ -1645,6 +1743,10 @@ var Wortel = (function() {
 		'@fac': function(x) {return new JS.FnCall('_fac', [x])},
 		'@maxl': function(x) {return new JS.FnCall('_maxl', [x])},
 		'@minl': function(x) {return new JS.FnCall('_minl', [x])},
+		'@isPrime': function(x) {return new JS.FnCall('_isPrime', [x])},
+		'@primes': function(x) {return new JS.FnCall('_primes', [x])},
+		'@nextPrime': function(x) {return new JS.FnCall('_nextPrime', [x])},
+		'@prevPrime': function(x) {return new JS.FnCall('_prevPrime', [x])},
 		// binary
 		'+': function(x, y) {return new JS.BinOp('+', x, y)},
 		'@in': function(x, y) {return new JS.BinOp(' in ', x, y)},
