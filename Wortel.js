@@ -15,7 +15,7 @@ var Wortel = (function() {
 	var symbols = '~`!@#%^&*-+=|\\:?/><,';
 	var quoteSymbols = ['\\', '&\\', '\\\\', '^', '%^', '*^', '/^', '+^', '%!', '#^'];
 	var groupQuoter = ['@', '@@', '^', '!?', '^&', '&^!'];
-	var dontQuote = ['!?', '^&', '&^!'];
+	var dontQuote = ['!?', '^&', '&^!', '~', '#~'];
 	function isSymbol(c) {return symbols.indexOf(c) != -1};
 	var brackets = '()[]{}';
 	function isBracket(c) {return brackets.indexOf(c) != -1};
