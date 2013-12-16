@@ -1,20 +1,20 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.68.5
-	@date: 2013-12-15
+	@version: 0.68.6
+	@date: 2013-12-16
 
 	TODO: uniqf, group, firsti, reshape, shape, pset
 */
 
 var Wortel = (function() {
-	var version = '0.68.5';
+	var version = '0.68.6';
 	var _randN = 0;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
 	// Parser
 	var symbols = '~`!@#%^&*-+=|\\:?/><,';
 	var quoteSymbols = ['\\', '&\\', '\\\\', '^', '%^', '*^', '/^', '+^', '%!', '#^'];
-	var groupQuoter = ['@', '@@'];
+	var groupQuoter = ['@', '@@', '^'];
 	function isSymbol(c) {return symbols.indexOf(c) != -1};
 	var brackets = '()[]{}';
 	function isBracket(c) {return brackets.indexOf(c) != -1};
@@ -2372,6 +2372,19 @@ var Wortel = (function() {
 			} else if(bl instanceof JS.Name) return new JS.Name('this.'+bl.val);
 			else if(bl instanceof JS.Array) return new JS.Fn('', [], wrap(bl));
 			else if(bl instanceof JS.Number || bl instanceof JS.String) return new JS.ExprFn('', [], bl);
+			else if(bl instanceof JS.Group) {
+				var a = bl.val.map(function(x) {
+					if(x instanceof JS.Block && x.quoted)
+						return operators['^'](x)
+					return x;
+				});
+				if(a.length == 0) return new JS.ExprFn('', [new JS.Name('x')], new JS.Name('x'));
+				if(a.length == 1) return new JS.ExprFn('', [], operators['@!'](a[0], new JS.Name('arguments')));
+				var cur = operators['@!'](a[a.length-1], new JS.Name('arguments'));
+				for(var i = a.length-2; i >= 0; i--)
+					cur = new JS.FnCall(a[i], [cur]);
+				return new JS.ExprFn('', [], cur);
+			}
 			return new JS.Empty();
 		},
 		'+^': function(bl) {
