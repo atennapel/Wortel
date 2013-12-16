@@ -14,8 +14,8 @@ var Wortel = (function() {
 	// Parser
 	var symbols = '~`!@#%^&*-+=|\\:?/><,';
 	var quoteSymbols = ['\\', '&\\', '\\\\', '^', '%^', '*^', '/^', '+^', '%!', '#^'];
-	var groupQuoter = ['@', '@@', '^', '!?', '^&'];
-	var dontQuote = ['!?', '^&'];
+	var groupQuoter = ['@', '@@', '^', '!?', '^&', '&^!'];
+	var dontQuote = ['!?', '^&', '&^!'];
 	function isSymbol(c) {return symbols.indexOf(c) != -1};
 	var brackets = '()[]{}';
 	function isBracket(c) {return brackets.indexOf(c) != -1};
@@ -1688,6 +1688,7 @@ var Wortel = (function() {
 		'!<>': ['_mapm', '_upgrade', '_wrap', '_upgradeb'],
 		'@enum': ['_vals', '_zip'],
 		'&!': ['_wrap', '_fnarr'],
+		'&^!': ['_wrap', '_fnarr'],
 		'%!': ['_reflex'],
 	};
 	var opToLib = {
@@ -1895,6 +1896,17 @@ var Wortel = (function() {
 			else return new JS.MethodCall(fn, 'apply', [new JS.Name('this'), list]);
 		},
 		'&!': function(a, b) {return new JS.FnCall('_fnarr', [a, b])},
+		'&^!': function(a) {
+			if(a instanceof JS.Group) {
+				var ar = a.val.map(function(x) {
+					if(x instanceof JS.Block && x.quoted)
+						return operators['^'](x);
+					return x;
+				});
+				return new JS.MethodCall(new JS.Name('_fnarr'), 'bind', [new JS.Name('this'), new JS.Array(ar)]);
+			}
+			return new JS.MethodCall(new JS.Name('_fnarr'), 'bind', [new JS.Name('this'), a]);
+		},
 		'+!': function(f) {return new JS.FnCall(f, [])},
 		'&\\': function(bl, arg) {
 			if(arg instanceof JS.Array) {
@@ -2447,7 +2459,7 @@ var Wortel = (function() {
 		'^!!': function(x, y) {
 			return operators['!'](new JS.Name('_RC'), x, y);
 		},
-		'^@!': function(x) {
+		'@^!': function(x) {
 			return operators['@!'](new JS.Name('_RC'), x);
 		},
 	};
