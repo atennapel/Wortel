@@ -1,20 +1,21 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.68.6
+	@version: 0.68.7
 	@date: 2013-12-16
 
 	TODO: uniqf, group, firsti, reshape, shape, pset
 */
 
 var Wortel = (function() {
-	var version = '0.68.6';
+	var version = '0.68.7';
 	var _randN = 0;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
 	// Parser
 	var symbols = '~`!@#%^&*-+=|\\:?/><,';
 	var quoteSymbols = ['\\', '&\\', '\\\\', '^', '%^', '*^', '/^', '+^', '%!', '#^'];
-	var groupQuoter = ['@', '@@', '^'];
+	var groupQuoter = ['@', '@@', '^', '!?'];
+	var dontQuote = ['!?'];
 	function isSymbol(c) {return symbols.indexOf(c) != -1};
 	var brackets = '()[]{}';
 	function isBracket(c) {return brackets.indexOf(c) != -1};
@@ -106,9 +107,11 @@ var Wortel = (function() {
 				if(c.type == cb) level++;
 				else if(c.type == otherBracket(cb) && --level == 0)
 					r.splice(ind, i-ind+1, {type: cb, val: groupBrackets(r.slice(ind+1, i)).map(function(x) {
-						if(cq && x.type == 'symbol' && groupQuoter.indexOf(x.val) == -1 && quoteSymbols.indexOf(x.val) == -1) {
+						if(cq && x.type == 'symbol' &&
+								groupQuoter.indexOf(x.val) == -1 &&
+								dontQuote.indexOf(x.val) == -1 &&
+								quoteSymbols.indexOf(x.val) == -1)
 							x.quoted = true;
-						}
 						return x;
 					})}),
 					cb = false, i = ind;
@@ -2097,10 +2100,11 @@ var Wortel = (function() {
 			var arr = o.val, l = arr.length;
 			for(var i = 0, r = []; i < l; i += 2) {
 				var k = arr[i], v = arr[i+1];
-				r.push(new JS.FnCall(k, [vr]));
-				if(v !== undefined) r.push(new JS.FnCall(v, [vr]));
+				r.push(new JS.MethodCall(k instanceof JS.Block && k.quoted? operators['^'](k): k, 'apply', [new JS.Name('this'), vr]));
+				if(v !== undefined)
+					r.push(new JS.MethodCall(v instanceof JS.Block && v.quoted? operators['^'](v): v, 'apply', [new JS.Name('this'), vr]));
 			}
-			return new JS.ExprFn('', [vr], new JS.Ternary(r));
+			return new JS.ExprFn('', [new JS.Block('~', [vr])], new JS.Ternary(r));
 		},
 		'|': function(o, ch) {
 			var ar = ch.val, c = o;
@@ -2396,9 +2400,9 @@ var Wortel = (function() {
 		'#^': function(bl) {
 			var v = randVar();
 			if(bl instanceof JS.Name)
-				return new JS.ExprFn('', [v], new JS.MethodCall(bl, 'apply', [new JS.Name('null'), v]));
+				return new JS.ExprFn('', [v], new JS.MethodCall(bl, 'apply', [new JS.Name('this'), v]));
 			var t = operators['^'](bl);
-			return new JS.ExprFn('', [v], new JS.MethodCall(t, 'apply', [new JS.Name('null'), v]));
+			return new JS.ExprFn('', [v], new JS.MethodCall(t, 'apply', [new JS.Name('this'), v]));
 		},
 		'%^': function(bl) {
 			var id = randVar();
