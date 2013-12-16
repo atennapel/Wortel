@@ -14,8 +14,8 @@ var Wortel = (function() {
 	// Parser
 	var symbols = '~`!@#%^&*-+=|\\:?/><,';
 	var quoteSymbols = ['\\', '&\\', '\\\\', '^', '%^', '*^', '/^', '+^', '%!', '#^'];
-	var groupQuoter = ['@', '@@', '^', '!?'];
-	var dontQuote = ['!?'];
+	var groupQuoter = ['@', '@@', '^', '!?', '^&'];
+	var dontQuote = ['!?', '^&'];
 	function isSymbol(c) {return symbols.indexOf(c) != -1};
 	var brackets = '()[]{}';
 	function isBracket(c) {return brackets.indexOf(c) != -1};
@@ -2434,6 +2434,22 @@ var Wortel = (function() {
 		'&^': function(v) {return new JS.ExprFn('', [], v)},
 		'&<': function(x, y) {return x},
 		'&>': function(x, y) {return y},
+		'^&': function(o) {
+			var n = new JS.Name('_RC'), v = randVar();
+			return new JS.ExprFn(n, [new JS.Block('~', [v])],
+				o instanceof JS.Object || o instanceof JS.Array || o instanceof JS.Group?
+					new JS.MethodCall(operators['!?'](o), 'apply', [new JS.Name('this'), v]):
+				o);
+		},
+		'^!': function(x) {
+			return operators['!'](new JS.Name('_RC'), x);
+		},
+		'^!!': function(x, y) {
+			return operators['!'](new JS.Name('_RC'), x, y);
+		},
+		'^@!': function(x) {
+			return operators['@!'](new JS.Name('_RC'), x);
+		},
 	};
 
 	function formatValue(x) {
