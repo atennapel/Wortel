@@ -2432,6 +2432,8 @@ var Wortel = (function() {
 			return new JS.ExprFn('', [arr], new JS.MethodCall(arr, 'map', [new JS.ExprFn('', [a], toFnCall(bl, [a]))]));
 		},
 		'&^': function(v) {return new JS.ExprFn('', [], v)},
+		'&<': function(x, y) {return x},
+		'&>': function(x, y) {return y},
 	};
 
 	function formatValue(x) {
