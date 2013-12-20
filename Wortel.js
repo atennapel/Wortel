@@ -1,19 +1,19 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.68.7
-	@date: 2013-12-16
+	@version: 0.68.8
+	@date: 2013-12-21
 
 	TODO: uniqf, group, firsti, reshape, shape, pset
 */
 
 var Wortel = (function() {
-	var version = '0.68.7';
+	var version = '0.68.8';
 	var _randN = 0;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
 	// Parser
 	var symbols = '~`!@#%^&*-+=|\\:?/><,';
-	var quoteSymbols = ['\\', '&\\', '\\\\', '^', '%^', '*^', '/^', '+^', '%!', '#^'];
+	var quoteSymbols = ['\\', '&\\', '\\\\', '^', '%^', '*^', '/^', '+^', '%!', '#^', '-^'];
 	var groupQuoter = ['@', '@@', '^', '!?', '^&', '&^!'];
 	var dontQuote = ['!?', '^&', '&^!', '~', '#~'];
 	function isSymbol(c) {return symbols.indexOf(c) != -1};
@@ -2442,6 +2442,11 @@ var Wortel = (function() {
 			var arr = randVar();
 			var a = randVar();
 			return new JS.ExprFn('', [arr], new JS.MethodCall(arr, 'map', [new JS.ExprFn('', [a], toFnCall(bl, [a]))]));
+		},
+		'-^': function(bl) {
+			var arr = randVar();
+			var a = randVar();
+			return new JS.ExprFn('', [arr], new JS.MethodCall(arr, 'filter', [new JS.ExprFn('', [a], toFnCall(bl, [a]))]));
 		},
 		'&^': function(v) {return new JS.ExprFn('', [], v)},
 		'&<': function(x, y) {return x},
