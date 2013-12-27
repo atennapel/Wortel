@@ -1,13 +1,13 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.68.8
-	@date: 2013-12-21
+	@version: 0.68.9
+	@date: 2013-12-27
 
 	TODO: uniqf, group, firsti, reshape, shape, pset
 */
 
 var Wortel = (function() {
-	var version = '0.68.8';
+	var version = '0.68.9';
 	var _randN = 0;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
@@ -15,7 +15,7 @@ var Wortel = (function() {
 	var symbols = '~`!@#%^&*-+=|\\:?/><,';
 	var quoteSymbols = ['\\', '&\\', '\\\\', '^', '%^', '*^', '/^', '+^', '%!', '#^', '-^'];
 	var groupQuoter = ['@', '@@', '^', '!?', '^&', '&^!'];
-	var dontQuote = ['!?', '^&', '&^!', '~', '#~'];
+	var dontQuote = ['!?', '^&', '&^!', '~', '#~', '@', '@@'];
 	function isSymbol(c) {return symbols.indexOf(c) != -1};
 	var brackets = '()[]{}';
 	function isBracket(c) {return brackets.indexOf(c) != -1};
@@ -1971,6 +1971,7 @@ var Wortel = (function() {
 		// Array
 		// unary
 		'#': function(n) {return new JS.Prop(n, new JS.Name('length'))},
+		'#-': function(n) {return new JS.BinOp('-', new JS.Prop(n, new JS.Name('length')), new JS.Number('1'))},
 		'@head': function(n) {return new JS.Index(n, new JS.Number('0'))},
 		'@tail': function(n) {return new JS.MethodCall(n, 'slice', [new JS.Number('1')])},
 		'@init': function(n) {return new JS.MethodCall(n, 'slice', [new JS.Number('0'), new JS.UnOp('-', new JS.Number('1'))])},
