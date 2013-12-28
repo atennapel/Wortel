@@ -15,7 +15,7 @@ var Wortel = (function() {
 	var symbols = '~`!@#%^&*-+=|\\:?/><,';
 	var quoteSymbols = ['\\', '&\\', '\\\\', '^', '%^', '*^', '/^', '+^', '%!', '#^', '-^'];
 	var groupQuoter = ['@', '@@', '^', '!?', '^&', '&^!'];
-	var dontQuote = ['!?', '^&', '&^!', '~', '#~', '@', '@@'];
+	var dontQuote = ['!?', '^&', '&^!', '~', '#~', '@', '@@', '&'];
 	function isSymbol(c) {return symbols.indexOf(c) != -1};
 	var brackets = '()[]{}';
 	function isBracket(c) {return brackets.indexOf(c) != -1};
@@ -423,6 +423,16 @@ var Wortel = (function() {
 			if(te[0].type !== 'str') te = [{type:'str',val:''}].concat(te);
 			return te.map((function(x) {return x.type === 'str'? this.type+x.val+this.type:'('+compile(x.val, true)+')'}).bind(this)).join(' + ');
 		} else return this.type+this.val+this.type;
+	};
+	// Plain
+	JS.Plain = function(s) {
+		this.s = s || '';
+	};
+	JS.Plain.prototype.toString = function() {
+		return 'Plain('+this.s+')';
+	};
+	JS.Plain.prototype.compile = function() {
+		return this.s;
 	};
 	// Block
 	JS.Block = function(o, args, q, r) {
@@ -1614,6 +1624,11 @@ var Wortel = (function() {
 				new JS.Prefix('return ', r)
 			], true);
 		})(),
+		'_str': new JS.Plain("function _str(x) { var t = typeof x; if((x instanceof Number || t == 'number') || (x instanceof Date) || (x === undefined) || (x === null) || (t == 'boolean') || (t == 'function')) return ''+x; if(x instanceof String || t == 'string') return JSON.stringify(x); if(Array.isArray(x)) { for(var i = 0, l = x.length, r = []; i < l; i++) r.push(_str(x[i])); return '[' + r.join(' ') + ']'; } var r = []; for(var k in x) r.push(_str(k), _str(x[k])); return '{' + r.join(' ') + '}'}"),
+		'_num': new JS.Plain("function _num(x) { var t = typeof x; if(x instanceof Number || t == 'number') return x; if((x === undefined) || (x === null) || (t == 'function')) return 0; if((x instanceof Date) || (t == 'boolean') || (x instanceof String || t == 'string')) return +x; if(Array.isArray(x)) return _sum(x); var sum = 0; for(var k in x) sum += x[k]; return sum}"),
+		'_arr': new JS.Plain("function _arr(x) { var t = typeof x; if(Array.isArray(x)) return x; if(x instanceof Number || t == 'number') return (''+Math.abs(Math.floor(x))).split('').map(_num); if((x === undefined) || (x === null) || (t == 'boolean' && !x)) return []; if((x instanceof Date) || (t == 'boolean' && x) || (t == 'function')) return [x]; if(x instanceof String || t == 'string') return x.split(''); var r = []; for(var k in x) r.push([k, x[k]]); return r; }"),
+		'_obj': new JS.Plain("function _obj(x) { var t = typeof x; if((x === undefined) || (x === null)) return {}; if((t == 'boolean') || (t == 'function') || (x instanceof Number || t == 'number') || (x instanceof String || t == 'string')) return {value: x}; if(Array.isArray(x)) { var r = {}; for(var i = 0, l = x.length; i < l; i++) r[x[i][0]] = x[i][1]; return r; } return x; }"),
+		'_hash': new JS.Plain("function _hash(a, b) { for(var i = 0, l = Math.min(a.length, b.length), r = {}; i < l; i++) r[a[i]] = b[i]; return r; }"),
 	};
 	function addLibTo(obj) {
 		for(var k in Lib) obj[k] = eval('('+Lib[k].compile()+')');
@@ -1690,8 +1705,18 @@ var Wortel = (function() {
 		'&!': ['_wrap', '_fnarr'],
 		'&^!': ['_wrap', '_fnarr'],
 		'%!': ['_reflex'],
+		'@str': ['_str'],
+		'@num': ['_num', '_sum'],
+		'@arr': ['_arr', '_num'],
+		'@obj': ['_obj'],
+		'@hash': ['_hash'],
 	};
 	var opToLib = {
+		'@str': '_str',
+		'@num': '_num',
+		'@arr': '_arr',
+		'@obj': '_obj',
+		'@hash': '_hash',
 		'@%': '_mod',
 		'&!': '_fnarr',
 		'@range': '_range',
@@ -1766,6 +1791,11 @@ var Wortel = (function() {
 	// Operators
 	var operators = {
 		'@id': function(x) {return new JS.FnCall('_id', [x])},
+		'@str': function(x) {return new JS.FnCall('_str', [x])},
+		'@num': function(x) {return new JS.FnCall('_num', [x])},
+		'@arr': function(x) {return new JS.FnCall('_arr', [x])},
+		'@obj': function(x) {return new JS.FnCall('_obj', [x])},
+		'@hash': function(a, b) {return new JS.FnCall('_hash', [a, b])},
 		// Math
 		// unary
 		'@+': function(x) {return new JS.UnOp('+', x)},
@@ -2472,19 +2502,20 @@ var Wortel = (function() {
 
 	function formatValue(x) {
 		var t = typeof x;
-		if(t == 'number' || t == 'boolean' || t == 'undefined' || x === null || t == 'function')
+		if((x instanceof Number || t == 'number') ||
+			 (x instanceof Date) || (x === undefined) || (x === null) || (t == 'boolean') || (t == 'function'))
 			return ''+x;
-		else if(t == 'string')
-			return '"' + x + '"';
-		else if(Array.isArray(x))
-			return '[' + x.map(formatValue).join(' ') + ']';
-		else {
-			var r = [];
-			for(var k in x)
-				if(x.hasOwnProperty(k))
-					r.push(k, x[k]);
-			return '{' + r.map(formatValue).join(' ') + '}';
+		if(x instanceof String || t == 'string')
+			return JSON.stringify(x);
+		if(Array.isArray(x)) {
+			for(var i = 0, l = x.length, r = []; i < l; i++)
+				r.push(_str(x[i]));
+			return '[' + r.join(' ') + ']';
 		}
+		var r = [];
+		for(var k in x)
+			r.push(_str(k), _str(x[k]));
+		return '{' + r.join(' ') + '}';
 	};
 
 	function runTags() {
