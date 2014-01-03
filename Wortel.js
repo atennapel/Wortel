@@ -1,13 +1,13 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.68.9
-	@date: 2013-12-27
+	@version: 0.69.0
+	@date: 2014-01-03
 
 	TODO: uniqf, group, firsti, reshape, shape, pset
 */
 
 var Wortel = (function() {
-	var version = '0.68.9';
+	var version = '0.69.0';
 	var _randN = 0;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
@@ -1986,7 +1986,8 @@ var Wortel = (function() {
 
 		// String
 		// unary
-		'@fromCode': function(n) {return new JS.FnCall('String.fromCharCode', [n])},
+		'@tch': function(n) {return new JS.FnCall('String.fromCharCode', [n])},
+		'@fch': function(n) {return new JS.MethodCall(n, 'charCodeAt', [])},
 		// binary
 		'@join': function(n, a) {return new JS.MethodCall(a, 'join', [n])},
 		'@test': function(n, a) {return new JS.MethodCall(n, 'test', [a])},
