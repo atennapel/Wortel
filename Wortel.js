@@ -1,14 +1,15 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.69.0
-	@date: 2014-01-03
+	@version: 0.69.1
+	@date: 2014-01-19
 
 	TODO: uniqf, group, firsti, reshape, shape, pset
 */
 
 var Wortel = (function() {
-	var version = '0.69.0';
+	var version = '0.69.1';
 	var _randN = 0;
+	var infix = false;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
 	// Parser
@@ -121,7 +122,21 @@ var Wortel = (function() {
 		return r;
 	};
 
+	function swap(a, i, j) {
+		var t = a[i];
+		a[i] = a[j];
+		a[j] = t;
+	};
+
+	function toInfix(r) {
+		for(var i = 0, l = r.length; i < l; i++)
+			if(r[i].type == 'symbol' && operators[r[i].val].length == 2)
+				swap(r, i-1, i);
+		return r;
+	};
+
 	function toAST(p) {
+		if(infix) toInfix(p);
 		for(var i = p.length-1, r = [], c; c = p[i], i >= 0; i--)
 			if(c.type == 'symbol') {
 				if(c.quoted) r.push(convertToken({
@@ -2525,13 +2540,16 @@ var Wortel = (function() {
 				eval(compile(a[i].innerHTML))
 	};
 
+	function setInfix(b) {infix = b === undefined? true: b};
+
 	return {
 		compile: compile,
 		parse: parse,
 		version: version,
 		addLibTo: addLibTo,
 		formatValue: formatValue,
-		runTags: runTags
+		runTags: runTags,
+		setInfix: setInfix
 	};
 })();
 
