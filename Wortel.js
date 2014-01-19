@@ -2572,6 +2572,8 @@ if(typeof global != 'undefined' && global) {
 					try {
 						if(s.trim() == 'setModeParse') mode = PARSEMODE;
 						else if(s.trim() == 'setModeEval') mode = EVALMODE;
+						else if(s.trim() == 'setInfixTrue') Wortel.setInfix(true);
+						else if(s.trim() == 'setInfixFalse') Wortel.setInfix(false);
 						else if(mode == PARSEMODE) console.log(Wortel.compile(s, true));
 						else if(mode == EVALMODE) console.log(Wortel.formatValue(eval(Wortel.compile(s, true))));
 					} catch(e) {
