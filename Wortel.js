@@ -1,11 +1,11 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.69.5
+	@version: 0.69.6
 	@date: 2014-05-30
 */
 
 var Wortel = (function() {
-	var version = '0.69.5';
+	var version = '0.69.6';
 	var _randN = 0;
 	var infix = false;
 	function randVar() {return new JS.Name('_'+(_randN++))}
@@ -1665,6 +1665,7 @@ var Wortel = (function() {
 		'_firstfi': new JS.Plain('function _firstfi(f,x){for(var i=0,l=(f).length;(i<l);i++){var c=((f)[i])(x);if(c){return i}};return -1}'),
 		'_group': new JS.Plain('function _group(f, a) {var o = _groupo(f, a), r = []; for(var k in o) r.push(o[k]); return r}'),
 		'_groupo': new JS.Plain('function _groupo(f, a) {for(var i = 0, l = a.length, r = {}; i < l; i++) {var c = a[i], t = f(c); if(!r[t]) r[t] = []; r[t].push(c)} return r}'),
+		'_uniqf': new JS.Plain('function _uniqf(f, a){for(var i=0,l=(a).length,r=[],r2=[];(i<l);i++){var t=f(a[i]);if(((-1)==(r2).indexOf(t))){r2.push(t);r.push(a[i])}};return r}'),
 	};
 	function addLibTo(obj) {
 		for(var k in Lib) obj[k] = eval('('+Lib[k].compile()+')');
@@ -1704,6 +1705,7 @@ var Wortel = (function() {
 		'@part': ['_part'],
 		'@zip': ['_zip'],
 		'@uniq': ['_uniq'],
+		'@uniqf': ['_uniqf'],
 		'@cart': ['_cart'],
 		'@flat': ['_flat'],
 		'@wrap': ['_wrap'],
@@ -1792,6 +1794,7 @@ var Wortel = (function() {
 		'@part': '_part',
 		'@zip': '_zip',
 		'@uniq': '_uniq',
+		'@uniqf': '_uniqf',
 		'@cart': '_cart',
 		'@flat': '_flat',
 		'@wrap': '_wrap',
@@ -2110,6 +2113,7 @@ var Wortel = (function() {
 		'@upgradel': function(a) {return new JS.FnCall('_upgradel', [a])},
 
 		'@uniq': function(n) {return new JS.FnCall('_uniq', [n])},
+		'@uniqf': function(f, n) {return new JS.FnCall('_uniqf', [f, n])},
 		'@mem': function(f) {return new JS.FnCall('_mem', [f])},
 		'@flat': function(n) {return new JS.FnCall('_flat', [n])},
 		'@wrap': function(n) {return new JS.FnCall('_wrap', [n])},
