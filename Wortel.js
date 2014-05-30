@@ -1,6 +1,6 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.69.2
+	@version: 0.69.3
 	@date: 2014-05-30
 */
 
@@ -660,6 +660,16 @@ var Wortel = (function() {
 			);
 		}
 		return r.join('');
+	};
+	// try
+	JS.Try = function(a, e, b, c) {
+		this.a = a;
+		this.e = e;
+		this.b = b;
+		this.c = c;
+	};
+	JS.Try.prototype.compile = function() {
+		return 'try{'+compileArray(this.a)+'}catch('+compileArray(this.e)+'){'+compileArray(this.b)+'}finally{'+compileArray(this.c)+'}';
 	};
 	// While
 	JS.While = function(c, a) {
@@ -2141,6 +2151,7 @@ var Wortel = (function() {
 		'@typeof': function(x) {return new JS.Prefix('typeof ', x)},
 		'?': function(o) {return new JS.Ternary(o.val)},
 		'@iff': function(o) {return new JS.If(o.val)},
+		'@try': function(a, e, b, c) {return new JS.Try(a, e, b, c)},
 		'@:': function(o) {return new JS.Assigment(o.val)},
 		'@vars': function(o) {
 			if(o instanceof JS.Object) return new JS.Prefix('var ', new JS.Assigment(o.val));
