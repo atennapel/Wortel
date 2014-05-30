@@ -1,9 +1,7 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.69.1
-	@date: 2014-01-19
-
-	TODO: uniqf, group, firsti, reshape, shape, pset
+	@version: 0.69.2
+	@date: 2014-05-30
 */
 
 var Wortel = (function() {
@@ -1644,6 +1642,13 @@ var Wortel = (function() {
 		'_arr': new JS.Plain("function _arr(x) { var t = typeof x; if(Array.isArray(x)) return x; if(x instanceof Number || t == 'number') return (''+Math.abs(Math.floor(x))).split('').map(_num); if((x === undefined) || (x === null) || (t == 'boolean' && !x)) return []; if((x instanceof Date) || (t == 'boolean' && x) || (t == 'function')) return [x]; if(x instanceof String || t == 'string') return x.split(''); var r = []; for(var k in x) r.push([k, x[k]]); return r; }"),
 		'_obj': new JS.Plain("function _obj(x) { var t = typeof x; if((x === undefined) || (x === null)) return {}; if((t == 'boolean') || (t == 'function') || (x instanceof Number || t == 'number') || (x instanceof String || t == 'string')) return {value: x}; if(Array.isArray(x)) { var r = {}; for(var i = 0, l = x.length; i < l; i++) r[x[i][0]] = x[i][1]; return r; } return x; }"),
 		'_hash': new JS.Plain("function _hash(a, b) { for(var i = 0, l = Math.min(a.length, b.length), r = {}; i < l; i++) r[a[i]] = b[i]; return r; }"),
+		'_union': new JS.Plain('function _union(a, b) {return a.concat(b)}'),
+		'_intersection': new JS.Plain('function _intersection(a, b) {for(var i = 0, r = [], la = a.length, lb = b.length; i < la; i++) for(var j = 0; j < lb; j++) if(a[i] === b[j]) r.push(a[i]); return r}'),
+		'_relcomplement': new JS.Plain('function _relcomplement(a, b) {for(var i = 0, r = [], l = a.length; i < l; i++) if(b.indexOf(a[i]) == -1) r.push(a[i]); return r}'),
+		'_symdifference': new JS.Plain('function _symdifference(a, b) {for(var i = 0, r = [], c = a.concat(b), l = c.length; i < l; i++) if(!(a.indexOf(c[i]) != -1 && b.indexOf(c[i]) != -1)) r.push(c[i]); return r}'),
+		'_pset': new JS.Plain('function powerset(a) {var ps = [[]];for (var i=0; i < a.length; i++) {for (var j = 0, len = ps.length; j < len; j++) {ps.push(ps[j].concat(a[i]))}} return ps}'),
+		'_issub': new JS.Plain('function _issub(a, b) {for(var i = 0, l = a.length, r = []; i < l; i++) if(b.indexOf(a[i]) == -1) return false; return true}'),
+		'_isstrsub': new JS.Plain('function _isstrsub(a, b) {var a = _uniq(a), b = _uniq(b); for(var i = 0, l = a.length, r = []; i < l; i++) if(b.indexOf(a[i]) == -1) return false; return l != b.length}'),
 	};
 	function addLibTo(obj) {
 		for(var k in Lib) obj[k] = eval('('+Lib[k].compile()+')');
@@ -1656,6 +1661,15 @@ var Wortel = (function() {
 				addLib(a[i]);
 	};
 	var opLibsReq = {
+		// set fns
+		'@U': ['_union'],
+		'@I': ['_intersection'],
+		'@C': ['_relcomplement'],
+		'@S': ['_symdifference'],
+		'@pset': ['_pset'],
+		'@issub': ['_issub'],
+		'@isstrsub': ['_uniq', '_isstrsub'],
+
 		'@%': ['_mod'],
 		'@to': ['_range'],
 		'@til': ['_range'],
@@ -1727,6 +1741,14 @@ var Wortel = (function() {
 		'@hash': ['_hash'],
 	};
 	var opToLib = {
+		'@U': '_union',
+		'@I': '_intersection',
+		'@C': '_relcomplement',
+		'@S': '_symdifference',
+		'@pset': '_pset',
+		'@issub': '_issub',
+		'@isstrsub': '_isstrsub',
+
 		'@str': '_str',
 		'@num': '_num',
 		'@arr': '_arr',
@@ -1811,6 +1833,15 @@ var Wortel = (function() {
 		'@arr': function(x) {return new JS.FnCall('_arr', [x])},
 		'@obj': function(x) {return new JS.FnCall('_obj', [x])},
 		'@hash': function(a, b) {return new JS.FnCall('_hash', [a, b])},
+
+		'@U': function(a, b) {return new JS.FnCall('_union', [a, b])},
+		'@I': function(a, b) {return new JS.FnCall('_intersection', [a, b])},
+		'@C': function(a, b) {return new JS.FnCall('_relcomplement', [a, b])},
+		'@S': function(a, b) {return new JS.FnCall('_symdifference', [a, b])},
+
+		'@pset': function(x) {return new JS.FnCall('_pset', [x])},
+		'@issub': function(a, b) {return new JS.FnCall('_issub', [a, b])},
+		'@isstrsub': function(a, b) {return new JS.FnCall('_isstrsub', [a, b])},
 		// Math
 		// unary
 		'@+': function(x) {return new JS.UnOp('+', x)},
