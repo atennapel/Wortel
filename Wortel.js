@@ -1,11 +1,11 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.69.3
+	@version: 0.69.4
 	@date: 2014-05-30
 */
 
 var Wortel = (function() {
-	var version = '0.69.1';
+	var version = '0.69.4';
 	var _randN = 0;
 	var infix = false;
 	function randVar() {return new JS.Name('_'+(_randN++))}
@@ -1661,6 +1661,8 @@ var Wortel = (function() {
 		'_isstrsub': new JS.Plain('function _isstrsub(a, b) {var a = _uniq(a), b = _uniq(b); for(var i = 0, l = a.length, r = []; i < l; i++) if(b.indexOf(a[i]) == -1) return false; return l != b.length}'),
 		'_asum': new JS.Plain('function _asum(a) {for(var i = 0, r = 0, l = a.length; i < l; i++) r += a[i] * (i%2?-1:1); return r}'),
 		'_iasum': new JS.Plain('function _iasum(a) {for(var i = 0, r = 0, l = a.length; i < l; i++) r += a[i] * (i%2?1:-1); return r}'),
+		'_firsti': new JS.Plain('function _firsti(f,a){for(var i=0,l=(a).length;(i<l);i++){if(f((a)[i])){return i}};return -1}'),
+		'_firstfi': new JS.Plain('function _firstfi(f,x){for(var i=0,l=(f).length;(i<l);i++){var c=((f)[i])(x);if(c){return i}};return -1}'),
 	};
 	function addLibTo(obj) {
 		for(var k in Lib) obj[k] = eval('('+Lib[k].compile()+')');
@@ -1738,6 +1740,8 @@ var Wortel = (function() {
 		'@one': ['_one'],
 		'@first': ['_first'],
 		'@firstf': ['_firstf'],
+		'@firsti': ['_firsti'],
+		'@firstfi': ['_firstfi'],
 		'@upgrade': ['_upgrade'],
 		'@upgradeb': ['_upgrade', '_upgradeb'],
 		'@upgradel': ['_maxl', '_rep'],
@@ -1821,6 +1825,8 @@ var Wortel = (function() {
 		'@one': '_one',
 		'@first': '_first',
 		'@firstf': '_firstf',
+		'@firsti': '_firsti',
+		'@firstfi': '_firstfi',
 		'@upgrade': '_upgrade',
 		'@upgradeb': '_upgradeb',
 		'@upgradel': '_upgradel',
@@ -2087,6 +2093,8 @@ var Wortel = (function() {
 		'@one': function(f, a) {return new JS.FnCall('_one', [f, a])},
 		'@first': function(f, a) {return new JS.FnCall('_first', [f, a])},
 		'@firstf': function(f, a) {return new JS.FnCall('_firstf', [f, a])},
+		'@firsti': function(f, a) {return new JS.FnCall('_firsti', [f, a])},
+		'@firstfi': function(f, a) {return new JS.FnCall('_firstfi', [f, a])},
 
 		'@upgrade': function(a, b) {return new JS.FnCall('_upgrade', [a, b])},
 		'@upgradeb': function(a, b) {return new JS.FnCall('_upgradeb', [a, b])},
