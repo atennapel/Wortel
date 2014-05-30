@@ -1649,6 +1649,8 @@ var Wortel = (function() {
 		'_pset': new JS.Plain('function powerset(a) {var ps = [[]];for (var i=0; i < a.length; i++) {for (var j = 0, len = ps.length; j < len; j++) {ps.push(ps[j].concat(a[i]))}} return ps}'),
 		'_issub': new JS.Plain('function _issub(a, b) {for(var i = 0, l = a.length, r = []; i < l; i++) if(b.indexOf(a[i]) == -1) return false; return true}'),
 		'_isstrsub': new JS.Plain('function _isstrsub(a, b) {var a = _uniq(a), b = _uniq(b); for(var i = 0, l = a.length, r = []; i < l; i++) if(b.indexOf(a[i]) == -1) return false; return l != b.length}'),
+		'_asum': new JS.Plain('function _asum(a) {for(var i = 0, r = 0, l = a.length; i < l; i++) r += a[i] * (i%2?-1:1); return r}'),
+		'_iasum': new JS.Plain('function _iasum(a) {for(var i = 0, r = 0, l = a.length; i < l; i++) r += a[i] * (i%2?1:-1); return r}'),
 	};
 	function addLibTo(obj) {
 		for(var k in Lib) obj[k] = eval('('+Lib[k].compile()+')');
@@ -1669,6 +1671,9 @@ var Wortel = (function() {
 		'@pset': ['_pset'],
 		'@issub': ['_issub'],
 		'@isstrsub': ['_uniq', '_isstrsub'],
+
+		'@asum': ['_asum'],
+		'@iasum': ['_iasum'],
 
 		'@%': ['_mod'],
 		'@to': ['_range'],
@@ -1748,6 +1753,9 @@ var Wortel = (function() {
 		'@pset': '_pset',
 		'@issub': '_issub',
 		'@isstrsub': '_isstrsub',
+
+		'@asum': '_asum',
+		'@iasum': '_iasum',
 
 		'@str': '_str',
 		'@num': '_num',
@@ -1842,6 +1850,9 @@ var Wortel = (function() {
 		'@pset': function(x) {return new JS.FnCall('_pset', [x])},
 		'@issub': function(a, b) {return new JS.FnCall('_issub', [a, b])},
 		'@isstrsub': function(a, b) {return new JS.FnCall('_isstrsub', [a, b])},
+
+		'@asum': function(x) {return new JS.FnCall('_asum', [x])},
+		'@iasum': function(x) {return new JS.FnCall('_iasum', [x])},
 		// Math
 		// unary
 		'@+': function(x) {return new JS.UnOp('+', x)},
