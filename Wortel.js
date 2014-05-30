@@ -1,11 +1,11 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.69.7
+	@version: 0.69.8
 	@date: 2014-05-30
 */
 
 var Wortel = (function() {
-	var version = '0.69.7';
+	var version = '0.69.8';
 	var _randN = 0;
 	var infix = false;
 	function randVar() {return new JS.Name('_'+(_randN++))}
@@ -287,18 +287,18 @@ var Wortel = (function() {
 			var spl = str2.split(/[\.\$]+/g);
 			var from, to, step, type;
 			if(typeof spl[2] != 'undefined')
-				from = +compileNumber(spl[0]), to = +compileNumber(spl[2]), step = +compileNumber(spl[1]), type = m[1];
+				from = eval(compileNumber(spl[0])), to = eval(compileNumber(spl[2])), step = eval(compileNumber(spl[1])), type = m[1];
 			else
-				from = +compileNumber(spl[0]), to = +compileNumber(spl[1]), step = 1, type = m[0];
+				from = eval(compileNumber(spl[0])), to = eval(compileNumber(spl[1])), step = from>to?-1:1, type = m[0];
 			var r = [];
 			if(type == '..')
-				for(var i = from; i <= to; i += step) r.push(i);
+				for(var i = from; step>0? i <= to: i >= to; i += step) r.push(i);
 			else if(type == '..$')
-				for(var i = from; i < to; i += step) r.push(i);
+				for(var i = from; step>0? i < to: i > to; i += step) r.push(i);
 			else if(type == '$..')
-				for(var i = from + step; i <= to; i += step) r.push(i);
+				for(var i = from + step; step>0? i <= to: i >= to; i += step) r.push(i);
 			else if(type == '$..$')
-				for(var i = from + step; i < to; i += step) r.push(i);
+				for(var i = from + step; step>0? i < to: i > to; i += step) r.push(i);
 			return '[' + r.join(', ') + ']';
 		}
 
