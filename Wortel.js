@@ -1,11 +1,11 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.69.8
-	@date: 2014-05-30
+	@version: 0.69.9
+	@date: 2014-06-02
 */
 
 var Wortel = (function() {
-	var version = '0.69.8';
+	var version = '0.69.9';
 	var _randN = 0;
 	var infix = false;
 	function randVar() {return new JS.Name('_'+(_randN++))}
@@ -2340,9 +2340,12 @@ var Wortel = (function() {
 			for(var i = 0, r = []; i < l; i += 2) {
 				var k = arr[i], v = arr[i+1];
 				r.push(new JS.MethodCall(k instanceof JS.Block && k.quoted? operators['^'](k): k, 'apply', [new JS.Name('this'), vr]));
-				if(v !== undefined)
+				if(v instanceof JS.String || v instanceof JS.Number)
+					r.push(v);
+				else if(v !== undefined)
 					r.push(new JS.MethodCall(v instanceof JS.Block && v.quoted? operators['^'](v): v, 'apply', [new JS.Name('this'), vr]));
 			}
+			if(r.length%2 == 0) r.push(new JS.Index(vr, new JS.Number('0')));
 			return new JS.ExprFn('', [new JS.Block('~', [vr])], new JS.Ternary(r));
 		},
 		'|': function(o, ch) {
