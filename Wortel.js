@@ -283,8 +283,8 @@ var Wortel = (function() {
 		if(/^[0-9]*\.[0-9]+$|^[0-9]+$/.test(str)) return str;
 		var str2 = val.replace(/\_/g, '');
 		if(/^([0-9a-z\.]+\$?\.\.\$?[0-9a-z\.]+)|([0-9a-z\.]+\$[0-9a-z\.]+\$?\.\.\$?[0-9a-z\.]+)$/i.test(str2)) {
-			var m = str2.match(/[\.\$]+/g);
-			var spl = str2.split(/[\.\$]+/g);
+			var m = str2.match(/\$?\.\.\$?/g);
+			var spl = str2.split(/\$?\.\.\$?/g);
 			var from, to, step, type;
 			if(typeof spl[2] != 'undefined')
 				from = eval(compileNumber(spl[0])), to = eval(compileNumber(spl[2])), step = eval(compileNumber(spl[1])), type = m[1];
