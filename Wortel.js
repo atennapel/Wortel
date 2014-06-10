@@ -1772,6 +1772,7 @@ var Wortel = (function() {
 		'_group': new JS.Plain('function _group(f, a) {var o = _groupo(f, a), r = []; for(var k in o) r.push(o[k]); return r}'),
 		'_groupo': new JS.Plain('function _groupo(f, a) {for(var i = 0, l = a.length, r = {}; i < l; i++) {var c = a[i], t = f(c); if(!r[t]) r[t] = []; r[t].push(c)} return r}'),
 		'_uniqf': new JS.Plain('function _uniqf(f, a){for(var i=0,l=(a).length,r=[],r2=[];(i<l);i++){var t=f(a[i]);if(((-1)==(r2).indexOf(t))){r2.push(t);r.push(a[i])}};return r}'),
+		'_mapo': new JS.Plain('function _mapo(f, o) {var r = {};for(var k in o)r[k] = f(o[k]);return r}'),
 	};
 	function addLibTo(obj) {
 		for(var k in Lib) obj[k] = eval('('+Lib[k].compile()+')');
@@ -1792,6 +1793,7 @@ var Wortel = (function() {
 		'@pset': ['_pset'],
 		'@issub': ['_issub'],
 		'@isstrsub': ['_uniq', '_isstrsub'],
+		'@mapo': ['_mapo'],
 
 		'@asum': ['_asum'],
 		'@iasum': ['_iasum'],
@@ -1879,6 +1881,7 @@ var Wortel = (function() {
 		'@pset': '_pset',
 		'@issub': '_issub',
 		'@isstrsub': '_isstrsub',
+		'@mapo': '_mapo',
 
 		'@asum': '_asum',
 		'@iasum': '_iasum',
@@ -1977,6 +1980,8 @@ var Wortel = (function() {
 		'@I': function(a, b) {return new JS.FnCall('_intersection', [a, b])},
 		'@C': function(a, b) {return new JS.FnCall('_relcomplement', [a, b])},
 		'@S': function(a, b) {return new JS.FnCall('_symdifference', [a, b])},
+
+		'@mapo': function(a, b) {return new JS.FnCall('_mapo', [a, b])},
 
 		'@pset': function(x) {return new JS.FnCall('_pset', [x])},
 		'@issub': function(a, b) {return new JS.FnCall('_issub', [a, b])},
