@@ -1,11 +1,11 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.7.1
+	@version: 0.7.2
 	@date: 2014-06-11
 */
 
 var Wortel = (function() {
-	var version = '0.7.1';
+	var version = '0.7.2';
 	var _randN = 0;
 	var infix = false;
 	function randVar() {return new JS.Name('_'+(_randN++))}
@@ -2705,10 +2705,16 @@ var Wortel = (function() {
 		},
 		// constants
 		"'": function(x) {return new JS.String(''+x.val, '"')},
+		
 		'@s': function() {return new JS.String(' ', '"')},
 		'@n': function() {return new JS.String('\n', '"')},
 		'@c': function() {return new JS.String(',', '"')},
 		'@p': function() {return new JS.String('.', '"')},
+
+		'@lines': function(s) {return new JS.MethodCall(s, 'split', [new JS.String('\n', '"')])},
+		'@unlines': function(a) {return new JS.MethodCall(a, 'join', [new JS.String('\n', '"')])},
+		'@words': function(s) {return new JS.MethodCall(s, 'split', [new JS.RegExp(new JS.String('\\s+', "'"), new JS.Name('g'))])},
+		'@unwords': function(a) {return new JS.MethodCall(a, 'join', [new JS.String(' ', '"')])},
 	};
 
 	function formatValue(x) {
