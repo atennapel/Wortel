@@ -6,8 +6,8 @@
 	!!console.log i x
 ; with a block
 @for x of @to 3 [
-	!console.log 'a'
-	!console.log 'b'
+	!console.log "a"
+	!console.log "b"
 ]
 
 ; looping over object

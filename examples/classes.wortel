@@ -9,7 +9,7 @@
 ; simple inheritance
 @class [Worker Person] {
 	[name age]
-	work @&[] !console.log 'Working.'
+	work @&[] !console.log "Working."
 }
 
 ; calling the super constructor
@@ -22,9 +22,9 @@
 
 ; creating objects
 @vars {
-	p 	@new Person['Peter' 25]
-	w 	@new Worker['Peter' 25]
-	w2 	@new Worker2['Peter' 25 'Programmer']
+	p 	@new Person["Peter" 25]
+	w 	@new Worker["Peter" 25]
+	w2 	@new Worker2["Peter" 25 "Programmer"]
 }
 @!console.log [
 	p.getName. p.getAge.
@@ -42,7 +42,7 @@ p.work. w.work. w2.work.
 	[name age]
 }
 
-!console.log `!.walk [] @new Walker['a' 10]
+!console.log `!.walk [] @new Walker["a" 10]
 
 ; class with only mixins
 @class {Walker2 Walks} {}
