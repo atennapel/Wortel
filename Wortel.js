@@ -2704,6 +2704,7 @@ var Wortel = (function() {
 			return operators['@!'](new JS.Name('_RC'), x);
 		},
 		// constants
+		"'": function(x) {return new JS.String(''+x.val, '"')},
 		'@s': function() {return new JS.String(' ', '"')},
 		'@n': function() {return new JS.String('\n', '"')},
 		'@c': function() {return new JS.String(',', '"')},
