@@ -1,17 +1,17 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.69.9
-	@date: 2014-06-02
+	@version: 0.7.0
+	@date: 2014-06-11
 */
 
 var Wortel = (function() {
-	var version = '0.69.9';
+	var version = '0.7.0';
 	var _randN = 0;
 	var infix = false;
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
 	// Parser
-	var symbols = '~`!@#%^&*-+=|\\:?/><,';
+	var symbols = "~`!@#%^&*-+=|\\:?/><,'";
 	var quoteSymbols = ['\\', '&\\', '\\\\', '^', '%^', '*^', '/^', '+^', '%!', '#^', '-^', '@~'];
 	var groupQuoter = ['@', '@@', '^', '!?', '^&', '&^!'];
 	var dontQuote = ['!?', '^&', '&^!', '~', '#~', '@', '@@', '&', '&^', '@~'];
@@ -29,7 +29,7 @@ var Wortel = (function() {
 			if(state == START) {
 				if(isBracket(c)) r.push({type: c});
 				else if(c == ';') state = COMMENT;
-				else if(c == "'" || c == '"') strtype = c, state = STRING;
+				else if(c == '"') strtype = c, state = STRING;
 				else if(/[0-9]/.test(c)) t.push(c), state = NUMBER;
 				else if(isSymbol(c)) t.push(c), state = SYMBOL;
 				else if(isValidName(c)) t.push(c), whitespace = /\s/.test(s[i-1] || ''), state = NAME;
@@ -2077,7 +2077,7 @@ var Wortel = (function() {
 				} else if(l.val.length == 1)
 					r = toFnCall(l.val[0], [x, x]);
 				return new JS.ExprFn('', [x], r);
-			}
+			} else if(l instanceof JS.String) return new JS.String(l.val, "'");
 		},
 		'@@': function(l) {
 			if(l instanceof JS.Group) {
