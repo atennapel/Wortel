@@ -1,11 +1,11 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.7.2
+	@version: 0.7.3
 	@date: 2014-06-11
 */
 
 var Wortel = (function() {
-	var version = '0.7.2';
+	var version = '0.7.3';
 	var _randN = 0;
 	var infix = false;
 	function randVar() {return new JS.Name('_'+(_randN++))}
@@ -2078,6 +2078,7 @@ var Wortel = (function() {
 					r = toFnCall(l.val[0], [x, x]);
 				return new JS.ExprFn('', [x], r);
 			} else if(l instanceof JS.String) return new JS.String(l.val, "'");
+			else if(l instanceof JS.Number) return new JS.Index(new JS.Name('arguments'), l);
 		},
 		'@@': function(l) {
 			if(l instanceof JS.Group) {
@@ -2344,7 +2345,13 @@ var Wortel = (function() {
 			var arr = o.val, l = arr.length;
 			for(var i = 0, r = []; i < l; i += 2) {
 				var k = arr[i], v = arr[i+1];
-				r.push(new JS.MethodCall(k instanceof JS.Block && k.quoted? operators['^'](k): k, 'apply', [new JS.Name('this'), vr]));
+				if(k instanceof JS.String || k instanceof JS.Number) {
+					if(v !== undefined)
+						r.push(new JS.BinOp('===', k, new JS.Index(vr, new JS.Number('0'))));
+					else
+						r.push(k);
+				} else
+					r.push(new JS.MethodCall(k instanceof JS.Block && k.quoted? operators['^'](k): k, 'apply', [new JS.Name('this'), vr]));
 				if(v instanceof JS.String || v instanceof JS.Number)
 					r.push(v);
 				else if(v !== undefined)
@@ -2710,6 +2717,10 @@ var Wortel = (function() {
 		'@n': function() {return new JS.String('\n', '"')},
 		'@c': function() {return new JS.String(',', '"')},
 		'@p': function() {return new JS.String('.', '"')},
+
+		'@x': function() {return new JS.Index(new JS.Name('arguments'), new JS.Number('0'))},
+		'@y': function() {return new JS.Index(new JS.Name('arguments'), new JS.Number('1'))},
+		'@z': function() {return new JS.Index(new JS.Name('arguments'), new JS.Number('2'))},
 
 		'@lines': function(s) {return new JS.MethodCall(s, 'split', [new JS.String('\n', '"')])},
 		'@unlines': function(a) {return new JS.MethodCall(a, 'join', [new JS.String('\n', '"')])},
