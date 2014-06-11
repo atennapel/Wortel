@@ -19,12 +19,11 @@ node Wortel input.wortel > output.js
 ```
 
 # Examples
-Check the examples folder.
+Check the examples directory.
 ```
 ; 99 bottles of beer
 !console.log @unlines ~!* 99..0 !? {
-	0 "0 bottles of beer on the wall\n0 bottles of beer\nbetter go to the store and buy some more."
-	1 "1 bottle of beer on the wall\n1 bottle of beer\nTake one down, pass it around"
-	"{@x} bottles of beer on the wall\n{@x} bottles of beer\nTake one down, pass it around"
+  0 "0 bottles of beer on the wall\n0 bottles of beer\nbetter go to the store and buy some more."
+  "{@x} bottle{@?@x{1 @e 's}} of beer on the wall\n{@x} bottle{@?@x{1 @e 's}} of beer\nTake one down, pass it around"
 }
 ```

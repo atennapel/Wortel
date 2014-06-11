@@ -2324,8 +2324,10 @@ var Wortel = (function() {
 			}
 			if(x instanceof JS.Name)
 				return new JS.Ternary(r);
-			else
-				return new JS.FnCall(new JS.Fn('', [], [new JS.Prefix('var ', new JS.Assigment([name, x])), new JS.Prefix('return ', new JS.Ternary(r))]), []);
+			else {
+				var rv = randVar();
+				return new JS.FnCall(new JS.Fn('', [name], [new JS.Prefix('return ', new JS.Ternary(r))]), [x]);
+			}
 		},
 		'@??': function(x, o) {
 			addLib('_eq');
@@ -2717,6 +2719,7 @@ var Wortel = (function() {
 		'@n': function() {return new JS.String('\n', '"')},
 		'@c': function() {return new JS.String(',', '"')},
 		'@p': function() {return new JS.String('.', '"')},
+		'@e': function() {return new JS.String('', '"')},
 
 		'@x': function() {return new JS.Index(new JS.Name('arguments'), new JS.Number('0'))},
 		'@y': function() {return new JS.Index(new JS.Name('arguments'), new JS.Number('1'))},
