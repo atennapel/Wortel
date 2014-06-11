@@ -1872,6 +1872,7 @@ var Wortel = (function() {
 		'@hash': ['_hash'],
 		'@group': ['_groupo', '_group'],
 		'@groupo': ['_groupo'],
+		'@??': ['_eq'],
 	};
 	var opToLib = {
 		'@U': '_union',
@@ -2327,7 +2328,6 @@ var Wortel = (function() {
 			else return new JS.FnCall(new JS.Fn('', [name], [new JS.Prefix('return ', new JS.Ternary(r))]), [x]);
 		},
 		'@??': function(x, o) {
-			addLib('_eq');
 			var name = x instanceof JS.Name? x: randVar();
 			for(var i = 0, a = o.val, l = a.length, r = []; i < l; i += 2) {
 				var k = a[i], v = a[i+1];
@@ -2336,8 +2336,7 @@ var Wortel = (function() {
 			}
 			if(x instanceof JS.Name)
 				return new JS.Ternary(r);
-			else
-				return new JS.FnCall(new JS.Fn('', [], [new JS.Prefix('var ', new JS.Assigment([name, x])), new JS.Prefix('return ', new JS.Ternary(r))]), []);
+			else return new JS.FnCall(new JS.Fn('', [name], [new JS.Prefix('return ', new JS.Ternary(r))]), [x]);
 		},
 		'!?': function(o) {
 			var vr = randVar();
