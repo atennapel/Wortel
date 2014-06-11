@@ -2324,10 +2324,7 @@ var Wortel = (function() {
 			}
 			if(x instanceof JS.Name)
 				return new JS.Ternary(r);
-			else {
-				var rv = randVar();
-				return new JS.FnCall(new JS.Fn('', [name], [new JS.Prefix('return ', new JS.Ternary(r))]), [x]);
-			}
+			else return new JS.FnCall(new JS.Fn('', [name], [new JS.Prefix('return ', new JS.Ternary(r))]), [x]);
 		},
 		'@??': function(x, o) {
 			addLib('_eq');
