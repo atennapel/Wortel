@@ -1,11 +1,11 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.7.3
-	@date: 2014-06-11
+	@version: 0.7.4
+	@date: 2014-06-12
 */
 
 var Wortel = (function() {
-	var version = '0.7.3';
+	var version = '0.7.4';
 	var _randN = 0;
 	var infix = false;
 	function randVar() {return new JS.Name('_'+(_randN++))}
@@ -1773,6 +1773,7 @@ var Wortel = (function() {
 		'_groupo': new JS.Plain('function _groupo(f, a) {for(var i = 0, l = a.length, r = {}; i < l; i++) {var c = a[i], t = f(c); if(!r[t]) r[t] = []; r[t].push(c)} return r}'),
 		'_uniqf': new JS.Plain('function _uniqf(f, a){for(var i=0,l=(a).length,r=[],r2=[];(i<l);i++){var t=f(a[i]);if(((-1)==(r2).indexOf(t))){r2.push(t);r.push(a[i])}};return r}'),
 		'_mapo': new JS.Plain('function _mapo(f, o) {var r = {};for(var k in o)r[k] = f(o[k]);return r}'),
+		'_getcolumn': new JS.Plain('function _getcolumn(inx, m) {for(var i = 0, l = m.length, r = []; i < l; i++) r.push(m[i][_mod(inx, m[i].length)]); return r}'),
 	};
 	function addLibTo(obj) {
 		for(var k in Lib) obj[k] = eval('('+Lib[k].compile()+')');
@@ -1794,6 +1795,7 @@ var Wortel = (function() {
 		'@issub': ['_issub'],
 		'@isstrsub': ['_uniq', '_isstrsub'],
 		'@mapo': ['_mapo'],
+		'@@`': ['_mod', '_getcolumn'],
 
 		'@asum': ['_asum'],
 		'@iasum': ['_iasum'],
@@ -1883,6 +1885,7 @@ var Wortel = (function() {
 		'@issub': '_issub',
 		'@isstrsub': '_isstrsub',
 		'@mapo': '_mapo',
+		'@@`': '_getcolumn',
 
 		'@asum': '_asum',
 		'@iasum': '_iasum',
@@ -1983,6 +1986,7 @@ var Wortel = (function() {
 		'@S': function(a, b) {return new JS.FnCall('_symdifference', [a, b])},
 
 		'@mapo': function(a, b) {return new JS.FnCall('_mapo', [a, b])},
+		'@@`': function(a, b) {return new JS.FnCall('_getcolumn', [a, b])},
 
 		'@pset': function(x) {return new JS.FnCall('_pset', [x])},
 		'@issub': function(a, b) {return new JS.FnCall('_issub', [a, b])},
