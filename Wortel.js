@@ -11,7 +11,7 @@ var Wortel = (function() {
 	function randVar() {return new JS.Name('_'+(_randN++))}
 		
 	// Parser
-	var symbols = "~`!@#%^&*-+=|\\:?/><,'";
+	var symbols = "~`!@#%^&*-+=|\\:?/><,";
 	var quoteSymbols = ['\\', '&\\', '\\\\', '^', '%^', '*^', '/^', '+^', '%!', '#^', '-^', '@~'];
 	var groupQuoter = ['@', '@@', '^', '!?', '^&', '&^!'];
 	var dontQuote = ['!?', '^&', '&^!', '~', '#~', '@', '@@', '&', '&^', '@~'];
@@ -22,15 +22,18 @@ var Wortel = (function() {
 	function isValidName(c) {return /[0-9a-z\_\$\.]/i.test(c)};
 
 	function parse(s) {
-		var START = 0, NUMBER = 1, SYMBOL = 2, NAME = 3, STRING = 4, COMMENT = 5,
-				r = [], t = [], strtype = esc = whitespace = false;
+		var START = 0, NUMBER = 1, SYMBOL = 2, NAME = 3, STRING = 4, COMMENT = 5, BRSTRING = 6, NWSTRING = 7,
+				r = [], t = [], strtype = esc = whitespace = false, brk = '', brkl = 0;
 		s += ' ';
 		for(var i = 0, l = s.length, state = START, c; c = s[i], i < l; i++) {
 			if(state == START) {
 				if(isBracket(c)) r.push({type: c});
 				else if(c == ';') state = COMMENT;
 				else if(c == '"') strtype = c, state = STRING;
-				else if(/[0-9]/.test(c)) t.push(c), state = NUMBER;
+				else if(c == "'") {
+					if(!isBracket(s[i+1])) state = NWSTRING;
+					else strtype = '"', brk = s[++i], brkl = 0, state = BRSTRING;
+				} else if(/[0-9]/.test(c)) t.push(c), state = NUMBER;
 				else if(isSymbol(c)) t.push(c), state = SYMBOL;
 				else if(isValidName(c)) t.push(c), whitespace = /\s/.test(s[i-1] || ''), state = NAME;
 			} else if(state == NUMBER) {
@@ -52,6 +55,21 @@ var Wortel = (function() {
 				else r.push({type: 'string', strtype: strtype, val: t.join('')}), t = [], state = START;
 			} else if(state == COMMENT) {
 				if(c == '\n') state = START;
+			} else if(state == BRSTRING) {
+				if(esc) esc = false, t.push(c);
+				else if(c == '\\') t.push(c), esc = true;
+				else if(c == strtype) t.push('\\'+c);
+				else if(c == brk) t.push(c), brkl++;
+				else if(c == otherBracket(brk)) {
+					if(brkl == 0)
+						r.push({type: 'string', strtype: strtype, val: t.join('')}), t = [], state = START;
+					else t.push(c), brkl--;
+				} else t.push(c);
+			} else if(state == NWSTRING) {
+				if(/\s/.test(c))
+					r.push({type: 'string', strtype: "'", val: t.join('')}), t = [], state = START;
+				else if(c == "'") t.push("\\'");
+				else t.push(c);
 			}
 		}
 
@@ -2460,6 +2478,10 @@ var Wortel = (function() {
 						)
 					])
 				);
+			} else if(type.length >= 3 && type.slice(0, 2) == 'of' && /[0-9]+/.test(type.slice(2))) {
+				var dim = +type.slice(2);
+				if(dim < 2) throw 'invalid dimension at ofn @for loop';
+				throw 'unimplemented';
 			} else if(type == 'in') {
 				var arg = wrap(arg);
 				if(arg.length == 1)
@@ -2732,8 +2754,6 @@ var Wortel = (function() {
 			return operators['@!'](new JS.Name('_RC'), x);
 		},
 		// constants
-		"'": function(x) {return new JS.String(''+x.val, '"')},
-		
 		'@s': function() {return new JS.String(' ', '"')},
 		'@n': function() {return new JS.String('\n', '"')},
 		'@c': function() {return new JS.String(',', '"')},
