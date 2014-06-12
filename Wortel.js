@@ -1,11 +1,11 @@
 /* Wortel
 	@author: Albert ten Napel
-	@version: 0.7.5
+	@version: 0.7.6
 	@date: 2014-06-12
 */
 
 var Wortel = (function() {
-	var version = '0.7.5';
+	var version = '0.7.6';
 	var _randN = 0;
 	var infix = false;
 	function randVar() {return new JS.Name('_'+(_randN++))}
@@ -2116,6 +2116,10 @@ var Wortel = (function() {
 						r = toFnCall(a[i], [r, toFnCall(a[i+1], [x, y])]);
 				}
 				return new JS.ExprFn('', [x, y], r);
+			} else if(l instanceof JS.Object) {
+				return new JS.FnCall(new JS.ExprFn('', [],
+					[new JS.Prefix('var ', new JS.Assigment([new JS.Name('_r'), new JS.Object([])]))]
+						.concat(l.val).concat(new JS.Name('_r'))), []);
 			}
 		},
 		// binary
@@ -2304,6 +2308,7 @@ var Wortel = (function() {
 		// unary
 		'@return': function(x) {return new JS.Prefix('return ', x)},
 		'@>': function(x) {return new JS.FnCall('_r.push', [x])},
+		'@@>': function(k, v) {return new JS.Assigment([new JS.Index(new JS.Name('_r'), k), v])},
 		'@typeof': function(x) {return new JS.Prefix('typeof ', x)},
 		'?': function(o) {return new JS.Ternary(o.val)},
 		'@iff': function(o) {return new JS.If(o.val)},
