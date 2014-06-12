@@ -3,40 +3,245 @@
 		<title>Wortel</title>
 	</head>
 	<body>
+		<h1>Wortel</h1>
 		<textarea id='in'></textarea><button id='b'>run</button>
 		<pre id='out'>
 		</pre>
 		<script src='Wortel.js'></script>
 		<script id='scr' type='text/wortel'>
 			@vars {
-				inp !document.getElementById 'in'
-				outp !document.getElementById 'out'
-				b !document.getElementById 'b'
-				s ''
+				inp !document.getElementById 'in
+				outp !document.getElementById 'out
+				b !document.getElementById 'b
+				s ""
 				show &o?{
-					@or [=@typeof o 'number' =@typeof o 'boolean' =@typeof o 'undefined' == o .]
-						+'' o
-					=@typeof o 'string'
-						++ '"' o '"'
-					=@typeof o 'function'
-						+'' o
+					@or [=@typeof o 'number =@typeof o 'boolean =@typeof o 'undefined == o .]
+						+"" o
+					=@typeof o 'string
+						'["{o}"]
+					=@typeof o 'function
+						+"" o
 					!Array.isArray o
-						"[{@join ' ' !*show o}]"
+						'[[{@join '[ ] !*show o}]]
 					@let {
 						keys !Object.keys o
 						vals !* &k !show `k o keys
-						@sum['{' @join ' ' !*\@join ' ' @zip keys vals '}']
+						@sum["{" @join " " !*\@join " " @zip keys vals "}"]
 					}
 				}
 			}
 			!Wortel.addLibTo window
-			:b.onclick^[
-				@: {
-					s +s ~+ '\n' !show !eval !!Wortel.compile inp.value true
-					outp.innerHTML s
-				}
-			]
+			@: {
+				s ++"Wortel v" Wortel.version @n
+				outp.innerHTML s
+				b.onclick^[
+					@: {
+						s +s ~+ @n !show !eval !!Wortel.compile inp.value true
+						outp.innerHTML s
+					}
+				]
+			}
 		</script>
 		<script>Wortel.runTags()</script>
+		<h2>Operators</h2>
+		<pre>
+@id x -> returns x
+@str x -> takes any type as argument and returns a string
+@num x -> 
+@arr x ->
+@obj x -> 
+@hash (List a) (List b) -> Takes a list of keys and a list of values and makes an object
+
+// Math
+@+ ->
+@- ->
+@sq ->
+@gcd ->
+@lcm ->
+@sqrt ->
+@abs ->
+@fac ->
+@maxl ->
+@minl ->
+@isPrime ->
+@primes ->
+@nextPrime ->
+@prevPrime ->
+@enum ->
++ ->
+@in ->
+- ->
+* ->
+@* ->
+/ ->
+@/ ->
+% ->
+%% ->
+!% ->
+@% ->
+@^ ->
+@max ->
+@min ->
+@maxf ->
+@minf ->
+@count ->
+
+// Boolean
+@not ->
+@bool ->
+@or ->
+@and ->
+= ->
+!= ->
+== ->
+!== ->
+@eq ->
+@neq ->
+> ->
+>= ->
+< ->
+<= ->
+|| ->
+&& ->
+
+// Function
+@ ->
+@@ ->
+-> ->
+& ->
+:& ->
+@& ->
+! ->
+@! ->
+&! ->
+&^! ->
++! ->
+&\ ->
+\ ->
+\\ ->
+!! ->
+`! ->
+
+// String
+@tch ->
+@fch ->
+@join ->
+@test ->
+@match ->
+@codeAt ->
+@indexOf ->
+@split ->
+@lastIndexOf ->
+@replace ->
+
+// Array
+# ->
+#- ->
+@head ->
+@tail ->
+@init ->
+@last ->
+@rev ->
+@sort ->
+@sortl ->
+@sortf ->
+@keys ->
+@vals ->
+@all ->
+@any ->
+@none ->
+@one ->
+@first ->
+@firstf ->
+@upgrade ->
+@upgradeb ->
+@upgradel ->
+@uniq ->
+@mem ->
+@flat ->
+@wrap ->
+&, ->
+@sum ->
+@prod ->
+@zipm ->
+@cartm ->
+@til ->
+@to ->
+@range ->
+@rangef ->
+@zip ->
+@mapm ->
+@join ->
+@cart ->
+@part ->
+@rep ->
+@repl ->
+@each ->
+, ->
+@, ->
+!* ->
+!/ ->
+!- ->
+!^ ->
+!// ->
+@scan ->
+&? ->
+!&? ->
+&@ ->
+!>< ->
+!<< ->
+!>> ->
+!<> ->
+` ->
+@` ->
+@fold ->
+@table ->
+
+// JS Keywords
+@break ->
+@return ->
+@> ->
+@typeof ->
+? ->
+@iff ->
+@: ->
+@vars ->
+@super ->
+@if ->
+: ->
+:! ->
+@let ->
+@var ->
+@new ->
+@instanceof ->
+@while ->
+@? ->
+@?? ->
+!? ->
+| ->
+@| ->
+@fori ->
+@for ->
+@class ->
+
+// Wortel
+~ ->
+#~ ->
+^ ->
++^ ->
+#^ ->
+%^ ->
+%! ->
+/^ ->
+*^ ->
+-^ ->
+&^ ->
+&< ->
+&> ->
+^& ->
+^! ->
+^!! ->
+@^! ->
+		<pre>
 	</body>
 </html>
