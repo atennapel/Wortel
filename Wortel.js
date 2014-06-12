@@ -2412,10 +2412,10 @@ var Wortel = (function() {
 			var type = ''+type.val, body = wrap(body);
 			if(type == 'of') {
 				var arg = wrap(arg);
-				var nameI = arg.length == 2? arg[0]: randVar();
-				var nameV = arg.length == 2? arg[1]: arg[0];
+				var nameI = arg.length >= 2? arg[0]: randVar();
+				var nameV = arg.length >= 2? arg[1]: arg[0];
 				var nameL = randVar();
-				var nameC = randVar(); 
+				var nameC = arg.length > 2? arg[2]: randVar(); 
 				return new JS.For(
 					new JS.Prefix('var ', new JS.Assigment([
 						nameI, new JS.Number('0'),
@@ -2436,7 +2436,7 @@ var Wortel = (function() {
 				var nameY = arg.length >= 3? arg[1]: randVar();
 				var nameL1 = randVar();
 				var nameL2 = randVar();
-				var nameC = randVar(); 
+				var nameC = arg.length > 4? arg[4]: randVar(); 
 				return new JS.For(
 					new JS.Prefix('var ', new JS.Assigment([
 						nameY, new JS.Number('0'),
@@ -2474,6 +2474,14 @@ var Wortel = (function() {
 						val,
 						new JS.Array([new JS.Prefix('var ', new JS.Assigment([arg[1], new JS.Index(val, arg[0])]))].concat(body))
 					);
+				else if(arg.length == 3)
+					return new JS.SemiGroup([
+						new JS.Prefix('var ', new JS.Assigment([arg[2], val])),
+						new JS.ForIn(
+							new JS.Prefix('var ', arg[0]),
+							arg[2],
+							new JS.Array([new JS.Prefix('var ', new JS.Assigment([arg[1], new JS.Index(arg[2], arg[0])]))].concat(body))
+						)]);
 			} else if(type == 'own') {
 				var arg = wrap(arg);
 				if(arg.length == 1)
@@ -2493,6 +2501,17 @@ var Wortel = (function() {
 							new JS.Array([new JS.Prefix('var ', new JS.Assigment([arg[1], new JS.Index(val, arg[0])]))].concat(body))
 						])])
 					);
+				else if(arg.length == 3)
+					return new JS.SemiGroup([
+						new JS.Prefix('var ', new JS.Assigment([arg[2], val])),
+						new JS.ForIn(
+							new JS.Prefix('var ', arg[0]),
+							arg[2],
+							new JS.Array([new JS.If([
+								new JS.FnCall(new JS.Prop(arg[2], new JS.Name('hasOwnProperty')), [arg[0]]),
+								new JS.Array([new JS.Prefix('var ', new JS.Assigment([arg[1], new JS.Index(arg[2], arg[0])]))].concat(body))
+							])])
+						)]);
 			} else if(type == 'to') {
 				var nameC = randVar(); 
 				return new JS.For(
