@@ -2271,6 +2271,9 @@ var Wortel = (function() {
 		'@range': function(o) {return new JS.FnCall('_range', [o])},
 		'@rangef': function(a, b, c) {return new JS.FnCall('_rangef', [a, b, c])},
 		// binary
+		'@take': function(n, a) {return new JS.MethodCall(a, 'slice', [new JS.Number('0'), n])},
+		'@drop': function(n, a) {return new JS.MethodCall(a, 'slice', [n])},
+
 		'@zip': function(a, b) {return new JS.FnCall('_zip', [a, b])},
 		'@mapm': function(f, a) {return new JS.FnCall('_mapm', [f, a])},
 		'@join': function(n, a) {return new JS.MethodCall(a, 'join', [n])},
