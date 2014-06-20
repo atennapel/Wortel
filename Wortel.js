@@ -2745,6 +2745,8 @@ var Wortel = (function() {
 		'&^': function(v) {return new JS.ExprFn('', [], v)},
 		'&<': function(x, y) {return x},
 		'&>': function(x, y) {return y},
+		
+		/*
 		'^&': function(o) {
 			var n = new JS.Name('_RC'), v = randVar();
 			return new JS.ExprFn(n, [new JS.Block('~', [v])],
@@ -2761,6 +2763,8 @@ var Wortel = (function() {
 		'@^!': function(x) {
 			return operators['@!'](new JS.Name('_RC'), x);
 		},
+		*/
+		
 		// constants
 		'@s': function() {return new JS.String(' ', '"')},
 		'@n': function() {return new JS.String('\n', '"')},
