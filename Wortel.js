@@ -2788,7 +2788,10 @@ var Wortel = (function() {
 		if(Array.isArray(x)) {
 			for(var i = 0, l = x.length, r = []; i < l; i++)
 				r.push(_str(x[i]));
-			return '[' + r.join(' ') + ']';
+			if(r[0][0] == '[')
+				return '[\n' + r.join('\n') + '\n]';
+			else
+				return '[' + r.join(' ') + ']';
 		}
 		var r = [];
 		for(var k in x)
