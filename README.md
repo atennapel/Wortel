@@ -3,6 +3,8 @@ Wortel
 
 Programming language that compiles to Javascript
 
+Try it out at: http://atennapel.github.io/Wortel
+
 # Usage
 ## REPL
 ```
