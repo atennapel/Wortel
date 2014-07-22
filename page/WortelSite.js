@@ -42,7 +42,7 @@
 			'		@+ || = neigh 3 && v = neigh 2',
 			'	}',
 			'	; testing it out',
-			'	!console.log !lifeMatrix !life [',
+			'	!console.log !life !life [',
 			'		[0 0 0 0 0]',
 			'		[0 0 0 0 0]',
 			'		[0 1 1 1 0]',
@@ -62,7 +62,7 @@
 			} catch(e) {
 				error($scope, e);
 			}
-			if(result) $scope.output = result;
+			if(result) $scope.output = js_beautify(result, {indent_size: 2});
 			console.log(eval($scope.output));
 		};
 	});
