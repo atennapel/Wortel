@@ -1,7 +1,0 @@
-;;[
-	Miro is a reimplementation of Wortel with a
-	better compiler and more thought out language.
-]
-
-;; isPrime function
-:isPrime @{\\% !* @to ~@# 0 = 2}
