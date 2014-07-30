@@ -1044,6 +1044,9 @@ var Miro = (function() {
 		if(!noerr && !t) error('Unknown operator ' + v);
 		return t || null;
 	}
+	function callOp(t, op, ar) {
+		return t.env[op].fn.apply(t, ar);
+	}
 	var stdlib = {};
 
 	// Math
@@ -1226,6 +1229,22 @@ var Miro = (function() {
 			return $.method($.call('Array.apply', [0, $.call('Array', [n])]), 'map', [$.fn([], $.binOp('+', 1, $.index('arguments', 1)))]);
 		}
 	};
+	stdlib['@range'] = {
+		length: 2,
+		optfn: [true, true],
+		fn: function(a, b) {
+			var $ = $$.from(this);
+			return $.method($.call('Array.apply', [0, $.call('Array', [$.binOp('-', b, a)])]), 'map', [$.fn([], $.binOp('+', a, $.index('arguments', 1)))]);
+		}
+	};
+	stdlib['@rev'] = {
+		length: 1,
+		optfn: [true],
+		fn: function(a) {
+			var $ = $$.from(this);
+			return $.method($.method($.array([]), 'concat', [a]), 'reverse', []);
+		}
+	};
 	stdlib['`'] = {
 		length: 2,
 		optfn: [true, true],
@@ -1258,9 +1277,48 @@ var Miro = (function() {
 		fn: function(f, a) {return $$.from(this).method(a, 'reduce', [f])}
 	};
 
+	stdlib['@sum'] = {
+		length: 1,
+		optfn: [true],
+		fn: function(o) {
+			var $ = $$.from(o), a = uname(), b = uname();
+			return $.method(o, 'reduce', [$.fn([a, b], $.binOp('+', a, b)), 0]);
+		}
+	};
+	stdlib['@prod'] = {
+		length: 1,
+		optfn: [true],
+		fn: function(o) {
+			var $ = $$.from(o), a = uname(), b = uname();
+			return $.method(o, 'reduce', [$.fn([a, b], $.binOp('*', a, b)), 1]);
+		}
+	};
+
 	// Tacit
-	stdlib['~'] = {length: 1, quoter: true, unquotable: true, fn: function(x) {}};
-	stdlib['^'] = {length: 1, quoter: true, unquotable: true, fn: function(x) {return $$.from(this).operatorFunction(x)}};
+	stdlib['~'] = {
+		length: 1, quoter: true, unquotable: true, fn: function(x) {
+			if($$.isName(x)) return $.prop('this', x);
+			return this;
+		}
+	};
+	stdlib['^'] = {length: 1, quoter: true, unquotable: true, fn: function(x) {
+		var $ = $$.from(this);
+		if($$.isName(x) || $$.isNumber(x))
+			return callOp(this, '@to', [x]);
+		else if($$.isOperator(x))
+			return $.operatorFunction(x);
+		else if($$.isGroup(x)) {
+			var a = x.val;
+			if(a.length == 0) error('Empty group for ^');
+			if(a.length == 1) return callOp(this, '@to', a);
+			if(a.length == 2) return callOp(this, '@range', a);
+			if(a.length > 2) { 
+				error('Unimplemented');
+				return callOp(this, '@range', a);
+			}
+		}
+		else error('Invalid type for ^ with argument ' + x);
+	}};
 	stdlib['@'] = {
 		length: 1,
 		unquotable: true,
