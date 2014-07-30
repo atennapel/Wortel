@@ -549,17 +549,26 @@ var Miro = (function() {
 
 	expr.Operator = function(op, v, pos, env) {
 		if(!env) error('No enviroment provided for operator ' + op + ' at ' + pos);
-		expr.List.call(this, v, pos);
+		expr.List.call(this, wrap(v), pos);
 		this.op = op;
 		this.env = env;
 		this.opt = op.opt || getOp(this.op, this.env);
 	};
+	ExprFactory.isOperator = function(x) {return x instanceof expr.Operator};
 	expr.Operator.prototype = new expr.List();
 	expr.Operator.prototype.toString = function() {return this.op + '[' + this.val.join(' ') + ']'};
 	expr.Operator.prototype.optimize = function(e) {
 		var $ = $$.from(this, e);
 		expr.List.prototype.optimize.call(this, e);
 		var oval = [].concat(this.val), al = oval.length, ol = this.opt.length;
+
+		if(this.op.meta && $$.isName(this.op.meta)) {
+			var v = this.op.meta.val, o = this;
+			if($$.isOperator(o)) o.op.meta = null;
+			for(var i = 0, l = v.length; i < l; i++)
+				if(suffix[v[i]]) o = suffix[v[i]](o);
+			return o;
+		}
 
 		if(this.opt.optfn) {
 			var args = [], b = false;
@@ -788,7 +797,7 @@ var Miro = (function() {
 		return o;
 	};
 
-	expr.Fn = function(args, body, pos, name) {this.args = args; this.body = $$.arrayUnpack(body); this.pos = pos; this.name = name || ''};
+	expr.Fn = function(args, body, pos, name) {this.args = wrap(args); this.body = $$.arrayUnpack(body); this.pos = pos; this.name = name || ''};
 	ExprFactory.isFn = function(x) {return x instanceof expr.Fn};
 	expr.Fn.prototype = new expr.Expr();
 	expr.Fn.prototype.toString = function() {return 'Fn(' + this.name + '[' + this.args.join(' ') + '] [' + this.body.join(' ') + '])'};
@@ -1278,26 +1287,47 @@ var Miro = (function() {
 			}
 			if($$.isNumber(x)) return $.index('arguments', x);
 			return this;
-		}};
-		stdlib['@@'] = {
-			length: 1,
-			unquotable: true,
-			objectquoter: true,
-			recobjectquoter: true,
-			recarrayquoter: true,
-			fn: function(x) {
-				var $ = $$.from(this);
-				var meta = this.op.meta;
-				if($$.isObject(x)) {
-					var t = $.fork(x.val, 2);
-					if(meta && $$.isNumber(meta) && !isNaN(+meta.val)) {
-						t.length = +meta.val;
-					}
-					return t;
+		}
+	};
+	stdlib['@@'] = {
+		length: 1,
+		unquotable: true,
+		objectquoter: true,
+		recobjectquoter: true,
+		recarrayquoter: true,
+		fn: function(x) {
+			var $ = $$.from(this);
+			var meta = this.op.meta;
+			if($$.isObject(x)) {
+				var t = $.fork(x.val, 2);
+				if(meta && $$.isNumber(meta) && !isNaN(+meta.val)) {
+					t.length = +meta.val;
 				}
-				return this;
+				return t;
 			}
-		};
+			return this;
+		}
+	};
+
+	// Suffixes
+	var suffix = {};
+
+	suffix['m'] = function(o) {
+		var $ = $$.from(o), x = o.val[0], n = uname();
+		if($$.isOperator(o))
+			return $.method(x, 'map', [$.fn([n], [$.operator(o.op, [n])])]);
+		else
+			return $.method(x, 'map', [$.fn([n], [$.call(o, [n])])]);
+	};
+
+	suffix['s'] = function(o) {
+		var $ = $$.from(o), a = uname(), b = uname();
+		return $.method(o, 'reduce', [$.fn([a, b], $.binOp('+', a, b)), 0]);
+	};
+	suffix['p'] = function(o) {
+		var $ = $$.from(o), a = uname(), b = uname();
+		return $.method(o, 'reduce', [$.fn([a, b], $.binOp('*', a, b)), 1]);
+	};
 
 	return {
 		version: version,
