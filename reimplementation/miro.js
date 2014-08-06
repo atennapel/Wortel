@@ -1,9 +1,9 @@
 /* miro compiler
- * @version: 0.1
+ * @version: 0.2
  * @author: Albert ten Napel
  * @email: aptennap@gmail.com
  * @github: atennapel
- * @date: 2014-07-13
+ * @date: 2014-07-31
  *
  * compile steps (compile)
  * 1. parse and tokenize (tokenize)
@@ -15,7 +15,7 @@
  * 7. compile js ast (compileJS)
  */
 var Miro = (function() {
-	var version = '0.1';
+	var version = '0.2';
 	var tab = '\t';
 
 	var SHOW_POS = false;
@@ -249,11 +249,11 @@ var Miro = (function() {
 
 		//console.log('getArgs', r);
 		// create operators and handle meta
-		for(var i = r.length-1, s = [], meta = null; i >= 0; i--) {
+		for(var i = r.length-1, s = [], meta = []; i >= 0; i--) {
 			var c = r[i];
-			//console.log(i, c +'', '['+s.join(' ')+']', meta+'')
-			if(meta) c.setMeta(meta), meta = null, c.getArgs(s, e);
-			else if(c === expr.meta) meta = s.pop();
+			//console.log(i + ' ' + c+' '+s+' '+meta)
+			if(c === expr.meta) meta.push(s.pop());
+			else if(meta.length > 0 && r[i-1] !== expr.meta) c.addMeta(meta), meta = [], c.getArgs(s, e);
 			else c.getArgs(s, e);
 		}
 
@@ -342,7 +342,7 @@ var Miro = (function() {
 		return a.map((function(x) {return this.convert(x)}).bind(this));
 	};
 	ExprFactory.arrayUnpack = function(a) {
-		return ExprFactory.isArray(a)? a.val: [a];
+		return Array.isArray(a)? a: ExprFactory.isArray(a)? a.val: [a];
 	};
 
 	ExprFactory.prototype.number = function(n) {return new expr.Number(n, this.pos)};
@@ -364,22 +364,61 @@ var Miro = (function() {
 	ExprFactory.prototype.method = function(a, i, args) {return new expr.Call(new expr.Prop(this.convert(a), this.convert(i), this.pos), this.convertAll(args), this.pos)};
 	ExprFactory.prototype.unOp = function(op, v) {return new expr.UnOp(op, this.convert(v), this.pos)};
 	ExprFactory.prototype.binOp = function(op, v, v2) {return new expr.BinOp(op, this.convert(v), this.convert(v2), this.pos)};
+	ExprFactory.prototype.returnStatement = function(v) {return new expr.ReturnStatement(this.convert(v), this.pos)};
+	ExprFactory.prototype.whileLoop = function(c, b) {return new expr.WhileLoop(this.convert(c), this.convert(b), this.pos)};
+	ExprFactory.prototype.varsdef = function(a) {return new expr.VarDefs(this.convertAll(a), this.pos)};
+	ExprFactory.prototype.assign = function(a) {return new expr.Assignment(this.convertAll(a), this.pos, false)};
+	ExprFactory.prototype.vars = function(a) {return new expr.Assignment(this.convertAll(a), this.pos, true)};
+	ExprFactory.prototype.iff = function(a, st) {return new expr.If(this.convertAll(a), this.pos, st)};
 	var $ = new ExprFactory();
 
 	expr.Meta = function() {};
 	expr.Meta.prototype.toString = function() {return "'"};
 	expr.Meta.prototype.quote = function() {};
 	expr.meta = new expr.Meta();
+
+	expr.MetaContainer = function(container) {
+		this.container = container;
+		this.arity = -1;
+		this.suffix = '';
+		this.type = 's';
+	};
+	expr.MetaContainer.prototype.add = function(x) {
+		var c = this.container;
+		if(x instanceof expr.Number) {
+			if(c instanceof expr.Name)
+				this.arity = +x.compile();
+			else if(c instanceof expr.Operator || c instanceof expr.Symbol)
+				this.suffix = x.val;
+		} else if(x instanceof expr.Name) {
+			if(c instanceof expr.Operator || c instanceof expr.Symbol)
+				this.suffix = x.val;
+			else	
+				this.type = x.val;
+		}
+		return this;
+	};
+	expr.MetaContainer.prototype.addAll = function(x) {
+		for(var i = 0, l = x.length; i < l; i++)
+			this.add(x[i]);
+		return this;
+	};
 	
 	expr.Expr = function(v, pos) {this.val = v; this.pos = pos || emptyPos};
 	expr.Expr.prototype.toString = function() {return this.val};
 	expr.Expr.prototype.quote = function() {return this};
-	expr.Expr.prototype.setMeta = function(meta) {this.meta = meta; return this};
+	expr.Expr.prototype.addMeta = function(a) {
+		if(!this.meta) this.meta = new expr.MetaContainer(this);
+		this.meta.addAll(a);
+		return this;
+	};
 	expr.Expr.prototype.getArgs = function(s) {s.push(this)};
 	expr.Expr.prototype.hash = function() {return this.toString()};
 	expr.Expr.prototype.optimize = function() {return this};
 	expr.Expr.prototype.isDot = function() {return false};
 	expr.Expr.prototype.replace = function(o) {return this};
+	expr.Expr.prototype.compileWithReturn = function(e) {return 'return ' + this.compile(e)};
+	expr.Expr.prototype.compile = function() {error('Cannot compile Expr')};
 	expr.Expr.prototype.countSimpleNames = function(o) {
 		var o = o || {};
 		return o;
@@ -525,11 +564,18 @@ var Miro = (function() {
 			f instanceof expr.Operator ||
 			f instanceof expr.OperatorFunction ||
 			f instanceof expr.Composition ||
-			f instanceof expr.Fork)) return f;
+			f instanceof expr.Fork)) {
+			if(this.meta) f.meta = this.meta;
+			return f;
+		}
 		return this;
 	};
 
-	expr.Array = function(v, pos) {expr.List.call(this, v, pos)};
+	expr.Array = function(v, pos) {
+		expr.List.call(this, v, pos);
+		this.meta = new expr.MetaContainer(this);
+		this.meta.type = 'a';
+	};
 	ExprFactory.isArray = function(x) {return x instanceof expr.Array};
 	expr.Array.prototype = new expr.List();
 	expr.Array.prototype.toString = function() {return '[' + this.val.join(' ') + ']'};
@@ -562,9 +608,9 @@ var Miro = (function() {
 		expr.List.prototype.optimize.call(this, e);
 		var oval = [].concat(this.val), al = oval.length, ol = this.opt.length;
 
-		if(this.op.meta && $$.isName(this.op.meta)) {
-			var v = this.op.meta.val, o = this;
-			if($$.isOperator(o)) o.op.meta = null;
+		if(this.op.meta && this.op.meta.suffix) {
+			var v = this.op.meta.suffix, o = this;
+			if($$.isOperator(o)) o.op.meta.suffix = '';
 			for(var i = 0, l = v.length; i < l; i++)
 				if(suffix[v[i]]) o = suffix[v[i]](o);
 			return o;
@@ -620,7 +666,17 @@ var Miro = (function() {
 			return $.operatorFunction(this.op);
 		if(al == ol) {
 			if(!this.opt.fn) error('Operator ' + this.op + ' does not have a compilation function.');
-			return this.opt.fn.apply(this, this.op.reversed? [].concat(oval).reverse(): oval);
+			var argsf = [].concat(oval);
+			if(this.op.reversed) argsf.reverse();
+			var types = argsf.map(function(x) {return x.meta? x.meta.type: 's'}).join(' ');
+			var revtypes = types.split('').reverse().join('');
+			if(this.opt.typed) {
+				if(this.opt.typed[types])
+					return this.opt.typed[types].apply(this, argsf);
+				else if(this.opt.typed[revtypes])
+					return this.opt.typed[revtypes].apply(this, argsf.reverse());
+			}
+			return this.opt.fn.apply(this, argsf);
 		}
 		if(al < ol)
 			return $.partialApplication(this.op, oval);
@@ -667,7 +723,7 @@ var Miro = (function() {
 		this.fn = this.fn.optimize(e);
 		expr.List.prototype.optimize.call(this, e);
 		
-		var lh = (this.fn.meta && this.fn.meta instanceof expr.Number && !isNaN(+this.fn.meta.val) && this.fn.meta.val) || -1;
+		var lh = this.fn.meta? this.fn.meta.arity: -1;
 		
 		if(this.fn instanceof expr.PartialApplication) {
 			var t = this.fn;
@@ -807,13 +863,13 @@ var Miro = (function() {
 		return this;
 	};
 	expr.Fn.prototype.compile = function(e) {
-		var b = compileAll(this.body, e), f = b.slice(0, -1), last = b[b.length-1], l = b.length;
+		var f = compileAll(this.body.slice(0, -1), e), last = this.body[this.body.length-1], l = this.body.length;
 		return (
 			l == 0?
 				'function ' + this.name + '(' + compileAll(this.args, e).join(', ') + ') {}':
 			l == 1?
-				'function ' + this.name + '(' + compileAll(this.args, e).join(', ') + ') {return ' +  last + '}':
-				'function ' + this.name + '(' + compileAll(this.args, e).join(', ') + ') {' + f.join('; ') + '; return ' + last + '}'
+				'function ' + this.name + '(' + compileAll(this.args, e).join(', ') + ') {' +  last.compileWithReturn(e) + '}':
+				'function ' + this.name + '(' + compileAll(this.args, e).join(', ') + ') {' + f.join('; ') + '; ' + last.compileWithReturn(e) + '}'
 		);
 	};
 	expr.Fn.prototype.countSimpleNames = function(o) {return countAllSimpleNames(this.body, o)};
@@ -913,8 +969,7 @@ var Miro = (function() {
 			return $.fn([], first);
 	
 		var last = a[a.length-1], c;
-		if(last.meta instanceof expr.Number && !isNaN(+last.meta.val))
-			this.length = +last.meta.val;
+		if(last.meta) this.length = last.meta.arity;
 		if(last instanceof expr.Symbol) {
 			var op = getOp(last, e);
 			for(var i = 0, ll = op.length; i < ll; i++) args.push(uname());
@@ -1037,6 +1092,40 @@ var Miro = (function() {
 		return o;
 	};
 
+	expr.ReturnStatement = function(v, pos) {expr.Expr.call(this, v, pos)};
+	expr.ReturnStatement.prototype = new expr.Expr();
+	expr.ReturnStatement.prototype.toString = function() {return 'Return(' + this.val + ')'};
+	expr.ReturnStatement.prototype.compile = function(e) {return this.val.compileWithReturn(e)};
+	
+	expr.WhileLoop = function(c, b, pos) {expr.Expr.call(this, c, pos); this.body = $$.arrayUnpack(b)};
+	expr.WhileLoop.prototype = new expr.Expr();
+	expr.WhileLoop.prototype.toString = function() {return 'WhileLoop(' + this.val + ' ' + this.body + ')'};
+	expr.WhileLoop.prototype.compile = function(e) {return 'while(' + this.c.compile(e) + ') {' + compileAll(this.body, e).join('; ') + '}'};
+	expr.WhileLoop.prototype.compileWithReturn = function() {error('Cannot compile a while loop with return')};
+
+	expr.Assignment = function(v, pos, st) {expr.List.call(this, v, pos); this.st = st};
+	expr.Assignment.prototype = new expr.List();
+	expr.Assignment.prototype.toString = function() {return 'Assignment(' + this.val.join(' ') + ')'};
+	expr.Assignment.prototype.compile = function(e) {
+		for(var i = 0, a = this.val, l = a.length, r = []; i < l; i += 2) {
+			var k = a[i], v = a[i+1];
+			r.push(k.compile(e) + ' = ' + v.compile(e));
+		}
+		return (this.st? 'var ': '') + r.join(', ');
+	};
+	
+	expr.If = function(v, pos, st) {expr.List.call(this, v, pos); this.st = st};
+	expr.If.prototype = new expr.List();
+	expr.If.prototype.toString = function() {return 'If(' + this.val.join(' ') + ')'};
+	expr.If.prototype.compile = function(e) {
+		error('unimplemented');
+	};
+
+	expr.VarDefs = function(v, pos) {expr.List.call(this, v, pos)};
+	expr.VarDefs.prototype = new expr.List();
+	expr.VarDefs.prototype.toString = function() {return 'VarDefs(' + this.val.join(' ') + ')'};
+	expr.VarDefs.prototype.compile = function(e) {return 'var ' + compileAll(this.val, e).join(', ')};
+
 	// stdlib
 	function getOp(v, e, noerr) {
 		if(!e) error('No enviroment provided for getOp');
@@ -1064,6 +1153,12 @@ var Miro = (function() {
 	stdlib['+'] = {
 		length: 2,
 		optfn: [true, true],
+		typed: {
+			'a s': function(a, s) {
+				var $ = $$.from(this), x = uname(), y = uname();
+				return $.method(a, 'map', [$.fn([x], this.opt.fn.call(this, s, x))]);
+			}
+		},
 		fn: function(x, y) {return $$.from(this).binOp('+', x, y)}
 	};
 	stdlib['-'] = {
@@ -1188,9 +1283,27 @@ var Miro = (function() {
 				$.call($.index(o, m), $$.arrayUnpack(a))
 		);
 	}}
+
+	// Conditional
+	stdlib['?'] = {length: 1, unquotable: true, fn: function(a) {
+		return $$.from(this).iff(a.val);
+	}};
+	stdlib['@if'] = {length: 2, unquotable: true, fn: function(a, b) {
+		return $$.from(this).iff([a, b]);
+	}};
 	
 	// Assignment
-	stdlib[':'] = {length: 2, fn: function(n, v) {return $$.from(this).binOp('=', n, v)}};
+	stdlib[':'] = {length: 2, fn: function(n, v) {return $$.from(this).assign([n, v])}};
+	stdlib['@:'] = {length: 1, fn: function(v) {return $$.from(this).assign(v.val)}};
+
+	stdlib['@var'] = {length: 2, fn: function(n, v) {return $$.from(this).vars([n, v], true)}};
+	stdlib['@vars'] = {length: 1, fn: function(v) {
+		var $ = $$.from(this);
+		if($$.isArray(v))
+			return $.varsdef(v.val);
+		else 
+			return $.vars(v.val, true);
+	}};
 
 	// Array
 	stdlib['#'] = {
@@ -1297,6 +1410,7 @@ var Miro = (function() {
 	// Tacit
 	stdlib['~'] = {
 		length: 1, quoter: true, unquotable: true, fn: function(x) {
+			var $ = $$.from(this);
 			if($$.isName(x)) return $.prop('this', x);
 			return this;
 		}
@@ -1305,7 +1419,7 @@ var Miro = (function() {
 		var $ = $$.from(this);
 		if($$.isName(x) || $$.isNumber(x))
 			return callOp(this, '@to', [x]);
-		else if($$.isOperator(x))
+		else if($$.isSymbol(x))
 			return $.operatorFunction(x);
 		else if($$.isGroup(x)) {
 			var a = x.val;
@@ -1313,11 +1427,10 @@ var Miro = (function() {
 			if(a.length == 1) return callOp(this, '@to', a);
 			if(a.length == 2) return callOp(this, '@range', a);
 			if(a.length > 2) { 
-				error('Unimplemented');
-				return callOp(this, '@range', a);
+				//^(vals... fn w)
 			}
 		}
-		else error('Invalid type for ^ with argument ' + x);
+		error('Invalid type for ^ with argument ' + x);
 	}};
 	stdlib['@'] = {
 		length: 1,
@@ -1331,16 +1444,12 @@ var Miro = (function() {
 			var meta = this.op.meta;
 			if($$.isObject(x)) {
 				var t = $.fork(x.val, 1);
-				if(meta && $$.isNumber(meta) && !isNaN(+meta.val)) {
-					t.length = +meta.val;
-				}
+				if(meta) t.length = meta.arity;
 				return t;
 			}
 			if($$.isArray(x)) {
 				var t = $.composition(x.val);
-				if(meta && $$.isNumber(meta) && !isNaN(+meta.val)) {
-					t.length = +meta.val;
-				}
+				if(meta) t.length = meta.arity;
 				return t;
 			}
 			if($$.isNumber(x)) return $.index('arguments', x);
@@ -1358,14 +1467,14 @@ var Miro = (function() {
 			var meta = this.op.meta;
 			if($$.isObject(x)) {
 				var t = $.fork(x.val, 2);
-				if(meta && $$.isNumber(meta) && !isNaN(+meta.val)) {
-					t.length = +meta.val;
-				}
+				if(meta) t.length = meta.arity;
 				return t;
 			}
 			return this;
 		}
 	};
+	stdlib['@<'] = {length: 2, fn: function(a, b) {return a}};
+	stdlib['@>'] = {length: 2, fn: function(a, b) {return b}};
 
 	// Suffixes
 	var suffix = {};
