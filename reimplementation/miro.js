@@ -107,7 +107,7 @@ var Miro = (function() {
 			if(state == START) {
 				if(c == '"') state = DSTRING, curpos = pos(j, line);
 				else if(c == "'") w = isWhitespace(s[i-1] || ''), first = true, state = QSTRING, curpos = pos(j, line);
-				else if(isOpeningBracket(c)) r.push({type: 'openbracket', val: c, pos: pos(j, line)(j, line)});
+				else if(isOpeningBracket(c)) r.push({type: 'openbracket', val: c, pos: pos(j, line)(j, line), indexer: r[r.length-1] && !isWhitespace(s[i-1] || '')});
 				else if(isClosingBracket(c)) r.push({type: 'closebracket', val: c, pos: pos(j, line)(j, line)});
 				else if(isIdent(c)) state = NAME, t.push(c), curpos = pos(j, line);
 				else if(isDigit(c)) state = NUMBER, t.push(c), curpos = pos(j, line);
@@ -196,7 +196,7 @@ var Miro = (function() {
 	// toAST
 	function toAST(a, e) {
 		// split operators, create expr tree (without operators)
-		for(var i = 0, l = a.length, r = [], tr = [], lv = 0, cb, ob, cp; i < l; i++) {
+		for(var i = 0, l = a.length, r = [], tr = [], lv = 0, cb, ob, cp, inx; i < l; i++) {
 			var c = a[i], t = c.type, v = c.val, p = c.pos;
 			if(!cb) {
 				if(t == 'number') r.push(new expr.Number(v, p));
@@ -204,7 +204,7 @@ var Miro = (function() {
 				else if(t == 'string') r.push(new expr.String(v, p));
 				else if(t == 'metadata') r.push(expr.meta);
 				else if(t == 'symbol') pushAll(r, (new expr.Symbol(v, p, c.name)).split(e));
-				else if(t == 'openbracket') cb = v, ob = otherBracket(v), cp = p, lv = 1;
+				else if(t == 'openbracket') cb = v, ob = otherBracket(v), inx = c.indexer, cp = p, lv = 1;
 				else if(t == 'closebracket')
 					error('Closing bracket before opening ' + v + ' at ' + p.start.line + ':' + p.start.ch);
 			} else {
@@ -213,9 +213,9 @@ var Miro = (function() {
 					lv--;
 					if(lv == 0) {
 						var ttr = toAST(tr, e), ps = pos(cp.start.ch, cp.start.line)(p.start.ch, p.start.line);
-						if(cb == '(') r.push(new expr.Group(ttr, ps));
-						else if(cb == '[') r.push(new expr.Array(ttr, ps));
-						else if(cb == '{') r.push(new expr.Object(ttr, ps));
+						if(cb == '(') r.push(new expr.Group(ttr, ps, inx));
+						else if(cb == '[') r.push(new expr.Array(ttr, ps, inx));
+						else if(cb == '{') r.push(new expr.Object(ttr, ps, inx));
 						else error('Unknown bracket type ' + cb + ' at ' + p.start.line + ':' + p.start.ch);
 						tr = [], cb = ob = cp = null;
 					} else tr.push(c);
@@ -228,6 +228,7 @@ var Miro = (function() {
 	}
 
 	function getArgs(r, e) {
+		console.log(r);
 		// handle quoting and reversing
 		for(var i = r.length-2; i >= 0; i--) {
 			var c = r[i], next = r[i+1];
@@ -247,7 +248,23 @@ var Miro = (function() {
 			} else if(c === expr.meta) next.quote(true) 
 		}
 
-		//console.log('getArgs', r);
+		//console.log('r', r);
+		for(var i = 0, l = r.length, x = []; i < l; i++) {
+			var c = r[i];
+			if(c.indexer && x.length > 0) {
+				var p = x.pop();
+				if(c instanceof expr.Group)
+					x.push(new expr.Call(p, c.val, p.pos));
+				else if(c instanceof expr.Array)
+					x.push(new expr.Index(p, c.val[0] || new expr.Number(0), p.pos));
+				else error('Unknown indexer ' + c);
+			} else x.push(c);
+		}
+	//	console.log('x', x);
+
+		r = x;
+
+	//	console.log('getArgs', r);
 		// create operators and handle meta
 		for(var i = r.length-1, s = [], meta = []; i >= 0; i--) {
 			var c = r[i];
@@ -257,8 +274,8 @@ var Miro = (function() {
 			else c.getArgs(s, e);
 		}
 
-		//console.log('result', s);
-
+	//	console.log('result', s);
+		
 		return s.reverse();
 	}
 
@@ -545,7 +562,7 @@ var Miro = (function() {
 		return this;
 	};
 
-	expr.Group = function(v, pos) {expr.List.call(this, v, pos)};
+	expr.Group = function(v, pos, indexer) {expr.List.call(this, v, pos); this.indexer = indexer};
 	ExprFactory.isGroup = function(x) {return x instanceof expr.Group};
 	expr.Group.prototype = new expr.List();
 	expr.Group.prototype.toString = function() {return '(' + this.val.join(' ') + ')'};
@@ -571,17 +588,18 @@ var Miro = (function() {
 		return this;
 	};
 
-	expr.Array = function(v, pos) {
+	expr.Array = function(v, pos, indexer) {
 		expr.List.call(this, v, pos);
 		this.meta = new expr.MetaContainer(this);
 		this.meta.type = 'a';
+		this.indexer = indexer;
 	};
 	ExprFactory.isArray = function(x) {return x instanceof expr.Array};
 	expr.Array.prototype = new expr.List();
 	expr.Array.prototype.toString = function() {return '[' + this.val.join(' ') + ']'};
 	expr.Array.prototype.compile = function(e) {return '[' + compileAll(this.val, e).join(', ') + ']'};
 
-	expr.Object = function(v, pos) {expr.List.call(this, v, pos)};
+	expr.Object = function(v, pos, indexer) {expr.List.call(this, v, pos); this.indexer = indexer};
 	ExprFactory.isObject = function(x) {return x instanceof expr.Object};
 	expr.Object.prototype = new expr.List();
 	expr.Object.prototype.toString = function() {return '{' + this.val.join(' ') + '}'};
@@ -829,7 +847,7 @@ var Miro = (function() {
 			return $.Name(this.val[0] + this.fn.val);
 		} else if(this.fn instanceof expr.Number ||
 							this.fn instanceof expr.Array ||
-							this.fn instanceof expr.Group ||
+							//this.fn instanceof expr.Group ||
 							this.fn instanceof expr.Object)
 			return this.fn;
 		return this;
