@@ -1,0 +1,32 @@
+- Token Types -
+Name: 	asd $ads _asd_ Jlf1
+Number: 123 21.32 12. 123fdAS 1_000_000
+Array: 	[1 2 3]
+Group: 	(1 2 3)
+Object:	{a 1 b 2 c 3}
+String:	"this is a string" 'word '(this is also a string) '[w1 w2 w3]
+Comment:
+	;; line comment
+	;;{
+		block comment
+	}
+
+- Operators -
+Regular:	`~!@#$%^&*-+=:;|\/?><,
+Meta: 		+'M
+Dot:			a.b.c
+Range:		.. ^.. ..^ ^..^
+
+- Meta -
+Call: 				f(1, 2, 3)
+Index:				a[1, 2, 3]
+Smart index: 	x{1, 2, 3}
+
+- Semitypes -
+Scalar:					s
+Array: 					a a2
+Changing array: A A2
+Object:					o
+
+:'A myarray [1 2 3]
++ myarray 1
