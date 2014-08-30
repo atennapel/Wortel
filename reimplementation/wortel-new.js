@@ -9,7 +9,6 @@ var Wortel = (function() {
 	var version = '0.1';
 
 	var BRACKETS = '()[]{}';
-	var INFIX_OPS = ["'", '.', '..', '^..', '..^', '^..^'];
 	var DEBUG = false;
 
 	// util
@@ -259,7 +258,7 @@ var Wortel = (function() {
 		// Handle infix
 		for(var i = 0, l = r.length; i < l; i++) {
 			var c = r[i];
-			if(c instanceof WSymbol && INFIX_OPS.indexOf(c.val) > -1) {
+			if(c instanceof WSymbol && c.op.infix) {
 				if(i == 0) c.reversed = true;
 				else {
 					var t = r[i-1];
@@ -272,20 +271,37 @@ var Wortel = (function() {
 	}
 
 	function getArgs(a) {
-		// Handle reversing operator
-		for(var i = 0, l = a.length; i < l; i++) {
-			var c = a[i], n = a[i+1];
+		// Handle reversing operator and indexers
+		for(var i = 0; i < a.length; i++) {
+			var c = a[i], n = a[i+1], p = a[i-1];
 			if(c instanceof WSymbol && c.val == '~' && n instanceof WSymbol) {
 				n.reversed = true;
 				a.splice(i, 1), i--;
+			} else if(i > 0 && !c.whitespace) {
+				if(c instanceof WGroup &&
+					(p instanceof WName || p instanceof WGroup)) {
+					a[i-1] = new WFnCall(p, c.val);
+					a.splice(i, 1), i--;
+				} else if(c instanceof WArray &&
+					(p instanceof WName || p instanceof WGroup || p instanceof WObject || p instanceof WArray)) {
+					a[i-1] = new WIndex(p, c.val);
+					a.splice(i, 1), i--;
+				}
 			}
+		}
+	
+		// Handle quoting
+		for(var i = 0, l = a.length; i < l; i++) {
+			var c = a[i], n = a[i+1];
+			if(c instanceof WSymbol && c.op.quoter && n instanceof WSymbol)
+				n.quoted = true, i++;
 		}
 
 		// getArgs
 		for(var i = a.length-1, s = []; i >= 0; i--)
 			a[i].getArgs(s);
 
-		return s;
+		return s.reverse();
 	}
 	
 	function compile(s) {
@@ -331,19 +347,23 @@ var Wortel = (function() {
 	// Symbol
 	function WSymbol(n) {
 		this.val = n;
+		this.op = op[n];
 	};
 	extend(WSymbol, WExpr);
 	WSymbol.prototype.toString = function() {
 		return (this.reversed? '~': '') + this.val;
 	};
 	WSymbol.prototype.getArgs = function(s) {
-		var l = op[this.val].length;
-		for(var i = Math.min(l, s.length), args = []; i > 0; i--)
-			args.push(s.pop());
-		if(args.length < l)
-			s.push(new WOpPartial(this, args));
-		else
-			s.push(new WOpCall(this, args));
+		if(this.quoted) s.push(this);
+		else {
+			var l = op[this.val].length;
+			for(var i = Math.min(l, s.length), args = []; i > 0; i--)
+				args.push(s.pop());
+			if(args.length < l)
+				s.push(new WOpPartial(this, args));
+			else
+				s.push(new WOpCall(this, args));
+		}
 	};
 
 	// List
@@ -394,9 +414,15 @@ var Wortel = (function() {
 	function WOpCall(fn, args) {
 		this.fn = fn;
 		this.args = args;
-		this.op = op[fn];
 	};
 	extend(WOpCall, WCall);
+	
+	// FnCall
+	function WFnCall(fn, args) {
+		this.fn = fn;
+		this.args = args;
+	};
+	extend(WFnCall, WCall);
 
 	// Partial
 	function WPartial(fn, args)	{};
@@ -409,40 +435,75 @@ var Wortel = (function() {
 	function WOpPartial(fn, args) {
 		this.fn = fn;
 		this.args = args;
-		this.op = op[fn];
 	};
 	extend(WOpPartial, WPartial);
+
+	// Index
+	function WIndex(obj, inx) {
+		this.obj = obj;
+		this.inx = inx;
+	}
+	extend(WIndex, WExpr);
+	WIndex.prototype.toString = function() {
+		return this.obj + '[' + this.inx.join(' ') + ']';
+	};
+	
 	
 	// operators
 	var op = {};
 
+	// Math
 	op['+'] = {
 		length: 2
 	};
 	op['-'] = {
 		length: 2
 	};
-	op['~'] = {
+	op['@sum'] = {
 		length: 1
 	};
 
+	// Partial
+	op['\\'] = {
+		length: 2,
+		quoter: true
+	};
+
+	// Meta
+	op['^'] = {
+		length: 1,
+		quoter: true
+	};
+	op['~'] = {
+		length: 1
+	};
 	op["'"] = {
-		length: 2
+		length: 2,
+		infix: true
 	};
+
+	// Indexing
 	op['.'] = {
-		length: 2
+		length: 2,
+		infix: true
 	};
+
+	// Range
 	op['..'] = {
-		length: 2
+		length: 2,
+		infix: true
 	};
 	op['^..'] = {
-		length: 2
+		length: 2,
+		infix: true
 	};
 	op['..^'] = {
-		length: 2
+		length: 2,
+		infix: true
 	};
 	op['^..^'] = {
-		length: 2
+		length: 2,
+		infix: true
 	};
 
 	return {

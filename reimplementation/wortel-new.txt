@@ -5,7 +5,7 @@ Array: 	[1 2 3]
 Group: 	(1 2 3)
 Object:	{a 1 b 2 c 3}
 String:	"this is a string" 'word '(this is also a string) '[w1 w2 w3]
-RegExp:	'/[^a-z]\s+/gi
+RegExp:	'/[^a-z]\s+/gi (comments are allowed in these)
 Comment:
 	;; line comment
 	;;{
@@ -31,3 +31,8 @@ Object:					o
 
 :'A myarray [1 2 3]
 + myarray 1
+
+- String Interpolation -
+Swift style:
+	"Hello \(name)"
+	"1 + 2 = \(+ 1 2)"
