@@ -1,8 +1,7 @@
-Miro
+Wortel reimplementation
 ======
 
 Programming language that compiles to Javascript.
-Miro is the successor of Wortel.
 
 # Goals
 * Optimized compiler

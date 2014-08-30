@@ -1,0 +1,2 @@
+;; isPrime function
+:isPrime @{\\% !* @to ~@# 0 = 2}

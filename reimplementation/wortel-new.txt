@@ -5,6 +5,7 @@ Array: 	[1 2 3]
 Group: 	(1 2 3)
 Object:	{a 1 b 2 c 3}
 String:	"this is a string" 'word '(this is also a string) '[w1 w2 w3]
+RegExp:	'/[^a-z]\s+/gi
 Comment:
 	;; line comment
 	;;{
