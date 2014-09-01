@@ -4,11 +4,14 @@
  * @email: aptennap@gmail.com
  * @github: atennapel
  * @date: 2014-08-30
+ *
+ * TODO:
  */
 var Wortel = (function() {
 	var version = '0.1';
 
 	var BRACKETS = '()[]{}';
+	var BINARY_IS_INFIX = true;
 	var DEBUG = false;
 
 	// util
@@ -40,6 +43,11 @@ var Wortel = (function() {
 			if(!f(a[i])) return false;
 		return true;
 	}
+	function any(f, a) {
+		for(var i = 0, l = a.length; i < l; i++)
+			if(f(a[i])) return true;
+		return false;
+	}
 	function flatten(a) {
 		for(var i = 0, l = a.length, r = []; i < l; i++)
 			for(var j = 0, k = a[i].length; j < k; j++)
@@ -51,7 +59,7 @@ var Wortel = (function() {
 			a.push(r[i]);
 		return a;
 	}
-	Array.prototype.toString = function(x) {return 'Array[' + this.join(', ') + ']'};
+	Array.prototype.toString = function(x) {return '@[' + this.join(', ') + ']'};
 	function extend(a, b) {a.prototype = Object.create(b.prototype)};
 
 	// Error handler
@@ -70,7 +78,7 @@ var Wortel = (function() {
 
 	// Tokenizer
 	function isDigit(c) {return /[0-9]/.test(c)}
-	function isIdent(c) {return /[a-z_\$]/i.test(c)}
+	function isIdent(c) {return /[a-z_\$\.]/i.test(c)}
 	function isSymbol(c) {return '`~!@#%^&*-+=|\\;:/?><,'.indexOf(c) > -1}
 	function isOpeningBracket(c) {var t = BRACKETS.indexOf(c); return t != -1 && !(t % 2)}
 	function isClosingBracket(c) {var t = BRACKETS.indexOf(c); return t != -1 && t % 2}
@@ -101,6 +109,8 @@ var Wortel = (function() {
 			var c = s[i] || ' ';
 			if(state == START) {
 				if(c == '"') state = DQSTRING;
+				else if(c == ';') r.push({type: 'semicolon'});
+				else if(c == ',') r.push({type: 'comma'});
 				else if(nextPart(s, i, 4) == '^..^')
 					i += 3, r.push({type: 'operator', val: '^..^'});
 				else if(nextPart(s, i, 3) == '..^')
@@ -109,7 +119,6 @@ var Wortel = (function() {
 					i++, r.push({type: 'operator', val: '..'});
 				else if(nextPart(s, i, 3) == '^..')
 					i += 2, r.push({type: 'operator', val: '^..'});
-				else if(c == '.') r.push({type: 'operator', val: '.'});
 				else if(c == "'" && i > 0 && !isWhitespace(s[i-1]))
 					r.push({type: 'operator', val: "'"});
 				else if(c == "'") state = QF;
@@ -119,21 +128,17 @@ var Wortel = (function() {
 				else if(isClosingBracket(c))
 					r.push({type: 'close', val: otherBracket(c)});
 				else if(isDigit(c)) state = NUMBER, i--;
-				else if(isIdent(c)) state = NAME, i--;
+				else if(isIdent(c)) tmp = isWhitespace(s[i-1]), state = NAME, i--;
 				else if(isSymbol(c)) state = OPERATOR, i--;
 			} else if(state == NUMBER) {
-				if(!isDigit(c) && !isIdent(c) && c != '.') {
-					r.push({type: 'number', val: t.join('')});
-					t = [];
-					state = START, i--;
-				} else if(nextPart(s, i, 2) == '..') {
+				if(nextPart(s, i, 2) == '..' || (!isDigit(c) && !isIdent(c) && c != '.')) {
 					r.push({type: 'number', val: t.join('')});
 					t = [];
 					state = START, i--;
 				} else t.push(c);
 			} else if(state == NAME) {
-				if(!isDigit(c) && !isIdent(c)) {
-					r.push({type: 'name', val: t.join('')});
+				if(nextPart(s, i, 2) == '..' || (!isDigit(c) && !isIdent(c) && c != ':')) {
+					r.push({type: 'name', val: t.join(''), whitespace: tmp});
 					t = [];
 					state = START, i--;
 				} else t.push(c);
@@ -176,7 +181,7 @@ var Wortel = (function() {
 					br = c, obr = otherBracket(c), lv = 1, state = QBSTRING;
 				else i--, state = QSTRING;
 			} else if(state == QSTRING) {
-				if(isWhitespace(c))
+				if(!isIdent(c) && !isDigit(c) && !isSymbol(c))
 					r.push({type: 'string', val: t.join('')}), t = [], state = START;
 				else t.push(c);
 			} else if(state == QBSTRING) {
@@ -227,16 +232,13 @@ var Wortel = (function() {
 				if(ty == 'open') br = v, w = c.whitespace, lv++;
 				else if(ty == 'close')
 					error('Closing bracket before opening: ' + otherBracket(v));
-				else if(ty == 'number')
-					r.push(new WNumber(v));
-				else if(ty == 'name')
-					r.push(new WName(v));
-				else if(ty == 'string')
-					r.push(new WString(v));
-				else if(ty == 'regexp')
-					r.push(new WRegExp(v, c.flags));
-				else if(ty == 'operator')
-					r.push(new WSymbol(v));
+				else if(ty == 'number') r.push(new WNumber(v));
+				else if(ty == 'name') r.push(new WName(v, c.whitespace));
+				else if(ty == 'string') r.push(new WString(v));
+				else if(ty == 'regexp') r.push(new WRegExp(v, c.flags));
+				else if(ty == 'operator') r.push(new WSymbol(v));
+				else if(ty == 'semicolon') r.push(new WSemicolon());
+				else if(ty == 'comma') r.push(new WComma());
 				else error('Invalid token type: ' + ty);
 			} else {
 				if(ty == 'open' && br == v) t.push(c), lv++;
@@ -257,61 +259,83 @@ var Wortel = (function() {
 	
 		// Handle infix
 		for(var i = 0, l = r.length; i < l; i++) {
-			var c = r[i];
-			if(c instanceof WSymbol && c.op.infix) {
-				if(i == 0) c.reversed = true;
-				else {
-					var t = r[i-1];
-					r[i-1] = c, r[i] = t;
-				}
+			var c = r[i], p = r[i-1];
+			if(c instanceof WSymbol) {
+				if(c.op.infix || (BINARY_IS_INFIX && c.op.length == 2 && c.op.infix !== false))
+					c.infix = true;
+				if(c.infix && i > 0 &&
+					!(p instanceof WSymbol && p.op.quoter) &&
+					!(p instanceof WComma) &&
+					!(p instanceof WSemicolon))
+						r[i-1] = c, r[i] = p;
 			}
 		}
 	
-		return getArgs(r);
+		// Give args to operators
+		var o = [];
+		while(r.length > 0)
+			r.shift().getArgs(r, o);
+
+		return o;
 	}
 
-	function getArgs(a) {
-		// Handle reversing operator and indexers
-		for(var i = 0; i < a.length; i++) {
-			var c = a[i], n = a[i+1], p = a[i-1];
-			if(c instanceof WSymbol && c.val == '~' && n instanceof WSymbol) {
-				n.reversed = true;
-				a.splice(i, 1), i--;
-			} else if(i > 0 && !c.whitespace) {
-				if(c instanceof WGroup &&
-					(p instanceof WName || p instanceof WGroup)) {
-					a[i-1] = new WFnCall(p, c.val);
-					a.splice(i, 1), i--;
-				} else if(c instanceof WArray &&
-					(p instanceof WName || p instanceof WGroup || p instanceof WObject || p instanceof WArray)) {
-					a[i-1] = new WIndex(p, c.val);
-					a.splice(i, 1), i--;
-				}
-			}
+	function checkIndexer(c, a) {
+		var n = a[0];
+		if(n instanceof WName && n.isIndexer() && !n.whitespace) {
+			a.unshift(new WProp(c, a.shift().indexless()));
+			return true;
 		}
-	
-		// Handle quoting
-		for(var i = 0, l = a.length; i < l; i++) {
-			var c = a[i], n = a[i+1];
-			if(c instanceof WSymbol && c.op.quoter && n instanceof WSymbol)
-				n.quoted = true, i++;
-		}
-
-		// getArgs
-		for(var i = a.length-1, s = []; i >= 0; i--)
-			a[i].getArgs(s);
-
-		return s.reverse();
+		return false;
 	}
-	
+
+	function checkGroup(c, a) {
+		var n = a[0];
+		if(n instanceof WGroup && !n.whitespace) {
+			a.unshift(new WFnCall(c, a.shift().val));
+			return true;
+		}
+		return false;
+	}
+
+	function checkArray(c, a) {
+		var n = a[0];
+		if(n instanceof WArray && !n.whitespace) {
+			a.unshift(new WIndex(c, a.shift().val));
+			return true;
+		}
+		return false;
+	}
+
 	function compile(s) {
-		return toAST(tokenize(s));
+		return new WSemiGroup(toAST(tokenize(s))).compile();
 	}
 
+	function compileAll(a) {
+		return a.map(function(x) {return x.compile()});
+	}
 	// Expr
 	function WExpr(val) {};
 	WExpr.prototype.toString = function() {return 'WExpr'};
-	WExpr.prototype.getArgs = function(s) {s.push(this)};
+	WExpr.prototype.isPlaceholder = function() {return false};
+	WExpr.prototype.compile = function() {return ''+this};
+	WExpr.prototype.getArgs = function(a, o) {
+		if(checkIndexer(this, a, o)) return;
+		if(checkGroup(this, a, o)) return;
+		if(checkArray(this, a, o)) return;
+		o.push(this);
+	};
+
+	// Semicolon
+	function WSemicolon() {};
+	extend(WSemicolon, WExpr);
+	WSemicolon.prototype.toString = function() {return 'WSemicolon'};
+	WSemicolon.prototype.getArgs = function(a, o) {o.push(this)};
+	
+	// Comma
+	function WComma() {};
+	extend(WComma, WExpr);
+	WComma.prototype.toString = function() {return 'WComma'};
+	WComma.prototype.getArgs = function() {};
 
 	// Number
 	function WNumber(n) {
@@ -321,11 +345,27 @@ var Wortel = (function() {
 	WNumber.prototype.toString = function() {return this.val};
 
 	// Name
-	function WName(n) {
+	var placeholder = new WName('.');
+	function isPlaceholder(x) {return x.isPlaceholder()};
+	function WName(n, w) {
 		this.val = n;
+		this.whitespace = w;
 	};
 	extend(WName, WExpr);
 	WName.prototype.toString = function() {return this.val};
+	WName.prototype.isPlaceholder = function() {return this.val == '.'};
+	WName.prototype.isIndexer = function() {return this.val[0] == '.' && !this.isPlaceholder()};
+	WName.prototype.indexless = function() {
+		if(this.isIndexer())
+			return new WName(this.val.slice(1), this.whitespace);
+		else return this;
+	};
+	WName.prototype.getArgs = function(a, o) {
+		if(checkIndexer(this, a, o)) return;
+		if(checkGroup(this, a, o)) return;
+		if(checkArray(this, a, o)) return;
+		o.push(this);
+	};
 
 	// String
 	function WString(n) {
@@ -353,16 +393,27 @@ var Wortel = (function() {
 	WSymbol.prototype.toString = function() {
 		return (this.reversed? '~': '') + this.val;
 	};
-	WSymbol.prototype.getArgs = function(s) {
-		if(this.quoted) s.push(this);
+	WSymbol.prototype.getArgs = function(a, o) {
+		var n = a[0];
+		if(this.val == '~' && n instanceof WSymbol)
+			a[0].reversed = true;
+		else if(this.quoted) o.push(this);
 		else {
-			var l = op[this.val].length;
-			for(var i = Math.min(l, s.length), args = []; i > 0; i--)
-				args.push(s.pop());
-			if(args.length < l)
-				s.push(new WOpPartial(this, args));
-			else
-				s.push(new WOpCall(this, args));
+			if(this.op.quoter && n instanceof WSymbol)
+				a[0].quoted = true;
+			var l = op[this.val].length, args = [], first = false;
+			if(o.length == 0 && this.infix) first = true;
+			while(args.length < l && (a.length > 0 || o.length > 0)) {
+				var last = o[o.length-1];
+				if(o.length > 0 && !(last instanceof WSemicolon)) args.push(o.pop());
+				else if(a.length > 0) a.shift().getArgs(a, o);
+				else if(last instanceof WSemicolon) {o.pop(); break}
+			}
+			if(args.length < l || any(isPlaceholder, args)) {
+				if(first) this.reversed = !this.reversed;
+				o.push(new WOpPartial(this, args));
+			} else
+				o.push(new WOpCall(this, args));
 		}
 	};
 
@@ -382,6 +433,14 @@ var Wortel = (function() {
 	WArray.prototype.toString = function() {
 		return '[' + this.val.join(' ') + ']';
 	};
+	WArray.prototype.compile = function() {
+		return '[' + compileAll(this.val).join(', ') + ']';
+	};
+	WArray.prototype.getArgs = function(a, o) {
+		if(checkIndexer(this, a, o)) return;
+		if(checkArray(this, a, o)) return;
+		o.push(this);
+	};
 	
 	// Group
 	function WGroup(a, w) {
@@ -392,7 +451,16 @@ var Wortel = (function() {
 	WGroup.prototype.toString = function() {
 		return '(' + this.val.join(' ') + ')';
 	};
-	
+	WGroup.prototype.compile = function() {
+		return '(' + compileAll(this.val).join(', ') + ')';
+	};
+	WGroup.prototype.getArgs = function(a, o) {
+		if(checkIndexer(this, a, o)) return;
+		if(checkGroup(this, a, o)) return;
+		if(checkArray(this, a, o)) return;
+		o.push(this);
+	};
+
 	// Object
 	function WObject(a, w) {
 		this.val = a;
@@ -401,6 +469,28 @@ var Wortel = (function() {
 	extend(WObject, WList);
 	WObject.prototype.toString = function() {
 		return '{' + this.val.join(' ') + '}';
+	};
+	WObject.prototype.compile = function() {
+		for(var i = 0, a = this.val, l = a.length, r = []; i < l; i += 2)
+			r.push(a[i].compile() + ': ' + a[i+1].compile());
+		return '{' + r.join(', ') + '}';
+	};
+	WObject.prototype.getArgs = function(a, o) {
+		if(checkIndexer(this, a, o)) return;
+		if(checkArray(this, a, o)) return;
+		o.push(this);
+	};
+
+	// SemiGroup
+	function WSemiGroup(a) {
+		this.val = a;
+	};
+	extend(WSemiGroup, WList);
+	WSemiGroup.prototype.toString = function() {
+		return '(' + this.val.join('; ') + ')';
+	};
+	WSemiGroup.prototype.compile = function() {
+		return compileAll(this.val).join('; ');
 	};
 
 	// Call
@@ -416,6 +506,14 @@ var Wortel = (function() {
 		this.args = args;
 	};
 	extend(WOpCall, WCall);
+	WOpCall.prototype.compile = function() {
+		if(!this.fn.op.compile)
+			error('Operator ' + this.fn.val + ' does not have a compile function.');
+		return this.fn.op.compile.apply(
+			this.fn.op,
+			this.fn.reversed? [].concat(this.args).reverse(): this.args
+		).compile();
+	};
 	
 	// FnCall
 	function WFnCall(fn, args) {
@@ -423,6 +521,9 @@ var Wortel = (function() {
 		this.args = args;
 	};
 	extend(WFnCall, WCall);
+	WFnCall.prototype.compile = function() {
+		return this.fn.compile() + '(' + compileAll(this.args).join(', ') + ')';	
+	};
 
 	// Partial
 	function WPartial(fn, args)	{};
@@ -447,20 +548,54 @@ var Wortel = (function() {
 	WIndex.prototype.toString = function() {
 		return this.obj + '[' + this.inx.join(' ') + ']';
 	};
+	WIndex.prototype.compile = function() {
+		return this.obj.compile() + '[' + compileAll(this.inx).join(', ') + ']';
+	};
 	
+	// Index
+	function WProp(obj, prop) {
+		this.obj = obj;
+		this.prop = prop;
+	}
+	extend(WProp, WExpr);
+	WProp.prototype.toString = function() {
+		return this.obj + '.' + this.prop;
+	};
+	WProp.prototype.compile = function() {
+		return this.obj.compile() + '.' + this.prop.compile();
+	};
+
+	// BinOp
+	function WBinOp(op, a, b) {
+		this.op = op;
+		this.a = a;
+		this.b = b;	
+	}
+	extend(WBinOp, WExpr);
+	WBinOp.prototype.toString = function() {
+		return '(' + this.a + ' ' + this.op + ' ' + this.b + ')';
+	};
+	WBinOp.prototype.compile = function() {
+		return '(' + this.a.compile() + ' ' + this.op + ' ' + this.b.compile() + ')';
+	};
 	
 	// operators
 	var op = {};
 
 	// Math
-	op['+'] = {
+	op['+'] = {length: 2, compile: function(a, b) {return new WBinOp('+', a, b)}};
+	op['-'] = {length: 2, compile: function(a, b) {return new WBinOp('-', a, b)}};
+	op['*'] = {length: 2, compile: function(a, b) {return new WBinOp('*', a, b)}};
+	op['/'] = {length: 2, compile: function(a, b) {return new WBinOp('/', a, b)}};
+	op['%'] = {length: 2, compile: function(a, b) {return new WBinOp('%', a, b)}};
+	op['@sum'] = {length: 1};
+
+	// Array
+	op['!*'] = {
 		length: 2
 	};
-	op['-'] = {
+	op['!/'] = {
 		length: 2
-	};
-	op['@sum'] = {
-		length: 1
 	};
 
 	// Partial
@@ -472,38 +607,33 @@ var Wortel = (function() {
 	// Meta
 	op['^'] = {
 		length: 1,
-		quoter: true
+		quoter: true,	
+		compile: function(x) {return new WOpPartial(x, [])}
 	};
 	op['~'] = {
-		length: 1
+		length: 1,
+		quoter: true
 	};
 	op["'"] = {
-		length: 2,
-		infix: true
-	};
-
-	// Indexing
-	op['.'] = {
-		length: 2,
-		infix: true
+		length: 2
 	};
 
 	// Range
 	op['..'] = {
 		length: 2,
-		infix: true
+		compile: function(x, y) {return new WFnCall(new WName('_range'), [x, y])}
 	};
 	op['^..'] = {
 		length: 2,
-		infix: true
+		compile: function(x, y) {return new WFnCall(new WName('_range'), [x, y])}
 	};
 	op['..^'] = {
 		length: 2,
-		infix: true
+		compile: function(x, y) {return new WFnCall(new WName('_range'), [x, y])}
 	};
 	op['^..^'] = {
 		length: 2,
-		infix: true
+		compile: function(x, y) {return new WFnCall(new WName('_range'), [x, y])}
 	};
 
 	return {
