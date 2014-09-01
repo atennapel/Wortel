@@ -397,13 +397,16 @@ var Wortel = (function() {
 		return (this.reversed? '~': '') + this.val;
 	};
 	WSymbol.prototype.getArgs = function(a, o) {
+		//console.log(this.val);
+		//this.infix = false;
 		var n = a[0];
 		if(this.val == '~' && n instanceof WSymbol)
-			a[0].reversed = true;
+			n.reversed = true;
+		else if(this.val == '^' && n instanceof WSymbol)
+			n.opfn = true;
 		else if(this.quoted) o.push(this);
+		else if(this.opfn) o.push(new WOpPartial(this, []));
 		else {
-			if(this.op.quoter && n instanceof WSymbol)
-				a[0].quoted = true;
 			var l = op[this.val].length, args = [], first = false;
 			if(o.length == 0 && this.infix) first = true;
 			while(args.length < l && (a.length > 0 || o.length > 0)) {
@@ -616,7 +619,6 @@ var Wortel = (function() {
 	// Meta
 	op['^'] = {
 		length: 1,
-		quoter: true,	
 		compile: function(x) {return new WOpPartial(x, [])}
 	};
 	op['~'] = {
