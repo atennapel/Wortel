@@ -79,7 +79,7 @@ var Wortel = (function() {
 	// Tokenizer
 	function isDigit(c) {return /[0-9]/.test(c)}
 	function isIdent(c) {return /[a-z_\$\.]/i.test(c)}
-	function isSymbol(c) {return '`~!@#%^&*-+=|\\;:/?><,'.indexOf(c) > -1}
+	function isSymbol(c) {return '`~!@#%^&*-+=|\\:/?><'.indexOf(c) > -1}
 	function isOpeningBracket(c) {var t = BRACKETS.indexOf(c); return t != -1 && !(t % 2)}
 	function isClosingBracket(c) {var t = BRACKETS.indexOf(c); return t != -1 && t % 2}
 	function otherBracket(c) {var t = BRACKETS.indexOf(c); return t == -1? false: BRACKETS[t + (t % 2? -1: 1)]};
@@ -266,8 +266,10 @@ var Wortel = (function() {
 				if(c.infix && i > 0 &&
 					!(p instanceof WSymbol && p.op.quoter) &&
 					!(p instanceof WComma) &&
-					!(p instanceof WSemicolon))
-						r[i-1] = c, r[i] = p;
+					!(p instanceof WSemicolon)) {
+					r[i-1] = c, r[i] = p;
+					c.switched = true;
+				}
 			}
 		}
 	
@@ -307,7 +309,8 @@ var Wortel = (function() {
 	}
 
 	function compile(s) {
-		return new WSemiGroup(toAST(tokenize(s))).compile();
+		//return new WSemiGroup(toAST(tokenize(s))).compile();
+		return new WSemiGroup(toAST(tokenize(s)));
 	}
 
 	function compileAll(a) {
@@ -335,7 +338,7 @@ var Wortel = (function() {
 	function WComma() {};
 	extend(WComma, WExpr);
 	WComma.prototype.toString = function() {return 'WComma'};
-	WComma.prototype.getArgs = function() {};
+	WComma.prototype.getArgs = function() {error('Invalid getArgs call on WComma.')};
 
 	// Number
 	function WNumber(n) {
@@ -406,11 +409,12 @@ var Wortel = (function() {
 			while(args.length < l && (a.length > 0 || o.length > 0)) {
 				var last = o[o.length-1];
 				if(o.length > 0 && !(last instanceof WSemicolon)) args.push(o.pop());
+				else if(a[0] instanceof WComma) break;
 				else if(a.length > 0) a.shift().getArgs(a, o);
 				else if(last instanceof WSemicolon) {o.pop(); break}
 			}
 			if(args.length < l || any(isPlaceholder, args)) {
-				if(first) this.reversed = !this.reversed;
+				if(first && !this.switched && args.length > 0) this.reversed = !this.reversed;
 				o.push(new WOpPartial(this, args));
 			} else
 				o.push(new WOpCall(this, args));
@@ -589,6 +593,11 @@ var Wortel = (function() {
 	op['/'] = {length: 2, compile: function(a, b) {return new WBinOp('/', a, b)}};
 	op['%'] = {length: 2, compile: function(a, b) {return new WBinOp('%', a, b)}};
 	op['@sum'] = {length: 1};
+
+	// Function
+	op['!'] = {
+		length: 2
+	};
 
 	// Array
 	op['!*'] = {
