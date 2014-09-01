@@ -338,7 +338,7 @@ var Wortel = (function() {
 	function WComma() {};
 	extend(WComma, WExpr);
 	WComma.prototype.toString = function() {return 'WComma'};
-	WComma.prototype.getArgs = function() {error('Invalid getArgs call on WComma.')};
+	WComma.prototype.getArgs = function() {};
 
 	// Number
 	function WNumber(n) {
