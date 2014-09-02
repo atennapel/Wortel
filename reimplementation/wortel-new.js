@@ -12,6 +12,7 @@ var Wortel = (function() {
 
 	var BRACKETS = '()[]{}';
 	var BINARY_IS_INFIX = true;
+	var OPTIMIZATION_LEVEL = 3;
 	var DEBUG = false;
 
 	// util
@@ -306,16 +307,16 @@ var Wortel = (function() {
 		return a.map(function(x) {return x.optimize()});
 	}
 
+	var opti;
 	function optimize(c) {
-		var i = 0;
-		console.log('optimize #' + (i) + ': ' + (c+''));
-		var h = null, c = c.optimize(i), t = c.hash();
-		while(t !== h) {
-			i++;
-			console.log('optimize #' + (i) + ': ' + (c + ''));
-			h = t, c = c.optimize(i), t = c.hash();
+		for(opti = 0; opti < OPTIMIZATION_LEVEL; opti++) {
+			console.log('optimize #' + (opti) + ': ' + (c+''));
+			var h = null, c = c.optimize(), t = c.hash();
+			while(t !== h) {
+				console.log('optimize #' + (opti) + ': ' + (c + ''));
+				h = t, c = c.optimize(), t = c.hash();
+			}
 		}
-		// console.log(c);
 		return c;
 	}
 
@@ -485,6 +486,7 @@ var Wortel = (function() {
 	};
 	WGroup.prototype.optimize = function() {
 		var a = this.val, c = a[0];
+		console.log(a, c, a.length)
 		if(a.length == 0) return new WName('undefined');
 		if(a.length == 1 && (
 			/*
@@ -539,20 +541,20 @@ var Wortel = (function() {
 		this.args = args;
 	};
 	extend(WCall, WExpr);
-	WCall.prototype.optimize = function() {
+	WCall.prototype.optimize = function(i) {
 		var a = optimizeArray(this.args), f = this.fn;
-		if(f instanceof WSymbol) {
+		if(f instanceof WSymbol && opti > 1) {
 			if(!f.op.compile)
 				error('Operator ' + f.val + ' does not have a compile function.');
 			for(var i = 0, ll = a.length, fnargs = false; i < ll; i++)
 				if(!f.op.fnargs[i] && a[i].isFn()) {fnargs = true; break}
 			if(a.length < f.op.length || any(isPlaceholder, a) || fnargs) {
-				if(this.addfirst) a.unshift(placeholder);
+				if(f.addfirst) a.unshift(placeholder);
 				return new WPartial(f, a);
 			}
 			return f.op.compile.apply(f.op, f.reversed? a.reverse(): a);
 		} else if(any(isPlaceholder, a)) return new WPartial(f, a);
-		return this;
+		return new WCall(f, a);
 	};
 	WCall.prototype.toString = function() {
 		return this.fn + '(' + this.args.join(' ') + ')';	
@@ -572,7 +574,8 @@ var Wortel = (function() {
 		return this.fn + '{' + this.args.join(' ') + '}';
 	};
 	WPartial.prototype.compile = function() {error('Cannot compile a partial')};
-	WPartial.prototype.optimize = function() {
+	WPartial.prototype.optimize = function(i) {
+		if(opti < 2) return this;
 		var a = this.args, args = this.targs || [], l = a.length;
 		if(this.fn instanceof WSymbol) {
 			l = this.fn.op.length;
@@ -706,6 +709,9 @@ var Wortel = (function() {
 	};
 
 	// Array
+	op['#'] = {
+		compile: function(a) {return new WCall(new WName('_length'), [a])}
+	};
 	op['!*'] = {
 		fnargs: [true, false],
 		compile: function(f, a) {return new WCall(new WName('_map'), [f, a])}
@@ -717,6 +723,10 @@ var Wortel = (function() {
 	op['!-'] = {
 		fnargs: [true, false],
 		compile: function(f, a) {return new WCall(new WName('_filter'), [f, a])}
+	};
+	op['@#'] = {
+		fnargs: [true, false],
+		compile: function(f, a) {return new WCall(new WName('_count'), [f, a])}
 	};
 
 	// Partial
