@@ -12,7 +12,7 @@ var Wortel = (function() {
 
 	var BRACKETS = '()[]{}';
 	var BINARY_IS_INFIX = true;
-	var OPTIMIZATION_LEVEL = 3;
+	var OPTIMIZATION_LEVEL = 4;
 	var DEBUG = false;
 
 	// util
@@ -415,19 +415,18 @@ var Wortel = (function() {
 		var n = a[0];
 		if(this.val == '~' && n instanceof WSymbol)
 			n.reversed = true;
-		else if(this.quoted) o.push(this);
+		else if(this.quoted && !this.op.unquotable) o.push(this);
 		else {
 			var l = op[this.val].length, args = [], first = false;
 			if(o.length == 0) first = true;
-			var quotes = [].concat(this.op.quotes);
-			if(this.reversed) quotes.reverse();
+			var quotes = [].concat(this.op.quotes); if(this.reversed) quotes.reverse();
 			var i = 0;
 			while(args.length < l && (a.length > 0 || o.length > 0)) {
 				var last = o[o.length-1];
 				if(o.length > 0 && !(last instanceof WSemicolon)) args.push(o.pop()), i++;
 				else if(a[0] instanceof WComma) break;
 				else if(a.length > 0) {
-					if(a[0] instanceof WSymbol && quotes[i]) args.push(a.shift());
+					if(a[0] instanceof WSymbol && quotes[i] && !a[0].op.unquotable) args.push(a.shift());
 					else a.shift().getArgs(a, o);
 				} else if(last instanceof WSemicolon) {o.pop(); break}
 			}
@@ -486,7 +485,6 @@ var Wortel = (function() {
 	};
 	WGroup.prototype.optimize = function() {
 		var a = this.val, c = a[0];
-		console.log(a, c, a.length)
 		if(a.length == 0) return new WName('undefined');
 		if(a.length == 1 && (
 			/*
@@ -546,8 +544,9 @@ var Wortel = (function() {
 		if(f instanceof WSymbol && opti > 1) {
 			if(!f.op.compile)
 				error('Operator ' + f.val + ' does not have a compile function.');
+			var fa = [].concat(f.op.fnargs); if(f.reversed) fa.reverse();
 			for(var i = 0, ll = a.length, fnargs = false; i < ll; i++)
-				if(!f.op.fnargs[i] && a[i].isFn()) {fnargs = true; break}
+				if(!fa[i] && a[i].isFn()) {fnargs = true; break}
 			if(a.length < f.op.length || any(isPlaceholder, a) || fnargs) {
 				if(f.addfirst) a.unshift(placeholder);
 				return new WPartial(f, a);
@@ -575,19 +574,20 @@ var Wortel = (function() {
 	};
 	WPartial.prototype.compile = function() {error('Cannot compile a partial')};
 	WPartial.prototype.optimize = function(i) {
-		if(opti < 2) return this;
-		var a = this.args, args = this.targs || [], l = a.length;
+		if(opti < 3) return this;
+		var a = this.args, args = this.targs || [], l = a.length, fa = [];
 		if(this.fn instanceof WSymbol) {
 			l = this.fn.op.length;
 			if(a.length > l) error('Too many arguments for the partial application of ' + this.fn);
 			while(a.length < l) a.push(placeholder);
+			fa = [].concat(this.fn.op.fnargs); if(this.fn.reversed) fa.reverse();
 		}
 		for(var i = 0; i < l; i++) {
 			if(a[i].isPlaceholder()) {
 				var v = uvar();
 				a[i] = v;
 				args.push(v);
-			} else if(a[i] instanceof WPartial) {
+			} else if(a[i] instanceof WPartial && !fa[i]) {
 				a[i].nofn = true;
 				a[i].targs = args;
 				a[i] = a[i].optimize();
@@ -692,7 +692,7 @@ var Wortel = (function() {
 
 	// Function
 	op['!'] = {
-		fnargs: [true, false],
+		fnargs: [true, true],
 		compile: function(f, a) {return new WCall(f, [a])}
 	};
 	op['@!'] = {
@@ -700,11 +700,12 @@ var Wortel = (function() {
 		compile: function(f, a) {return new WCall(new WName('_apply'), [f, a])}
 	};
 	op['!!'] = {
-		fnargs: [true, false, false],
+		fnargs: [true, true, true],
 		infix: true,
 		compile: function(f, a, b) {return new WCall(f, [a, b])}
 	};
 	op['&'] = {
+		unquotable: true,
 		compile: function(a, b) {return new WFn(a, b)}
 	};
 
@@ -731,16 +732,19 @@ var Wortel = (function() {
 
 	// Partial
 	op['\\'] = {
+		unquotable: true,
 		infix: false,
-		quotes: [true, false],
+		quotes: [true, true],
 		compile: function(f, a) {return new WPartial(f, [a])}
 	};
 	op['@\\'] = {
+		unquotable: true,
 		infix: false,
-		quotes: [true, false],
+		quotes: [true, true],
 		compile: function(f, a) {return new WPartial(f, [placeholder, a])}
 	};
 	op['&\\'] = {
+		unquotable: true,
 		infix: false,
 		quotes: [true, false],
 		compile: function(f, a) {return new WPartial(f, a.val)}
@@ -748,6 +752,7 @@ var Wortel = (function() {
 
 	// Meta
 	op['^'] = {
+		unquotable: true,
 		quotes: [true],
 		compile: function(x) {return new WPartial(x, [])}
 	};
