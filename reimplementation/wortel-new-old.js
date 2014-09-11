@@ -11,6 +11,7 @@ var Wortel = (function() {
 	var version = '0.1';
 
 	var BRACKETS = '()[]{}';
+	var BINARY_IS_INFIX = true;
 	var OPTIMIZATION_LEVEL = 4;
 	var DEBUG = false;
 
@@ -84,7 +85,7 @@ var Wortel = (function() {
 	// Tokenizer
 	function isDigit(c) {return /[0-9]/.test(c)}
 	function isIdent(c) {return /[a-z_\$\.]/i.test(c)}
-	function isSymbol(c) {return '`~!@#%^&*-+=|\\:;/?><,'.indexOf(c) > -1}
+	function isSymbol(c) {return '`~!@#%^&*-+=|\\:/?><'.indexOf(c) > -1}
 	function isOpeningBracket(c) {var t = BRACKETS.indexOf(c); return t != -1 && !(t % 2)}
 	function isClosingBracket(c) {var t = BRACKETS.indexOf(c); return t != -1 && t % 2}
 	function otherBracket(c) {var t = BRACKETS.indexOf(c); return t == -1? false: BRACKETS[t + (t % 2? -1: 1)]};
@@ -114,6 +115,8 @@ var Wortel = (function() {
 			var c = s[i] || ' ';
 			if(state == START) {
 				if(c == '"') state = DQSTRING;
+				else if(c == ';') r.push({type: 'semicolon'});
+				else if(c == ',') r.push({type: 'comma'});
 				else if(nextPart(s, i, 4) == '^..^')
 					i += 3, r.push({type: 'operator', val: '^..^'});
 				else if(nextPart(s, i, 3) == '..^')
@@ -240,6 +243,8 @@ var Wortel = (function() {
 				else if(ty == 'string') r.push(new WString(v));
 				else if(ty == 'regexp') r.push(new WRegExp(v, c.flags));
 				else if(ty == 'operator') r.push(new WSymbol(v));
+				else if(ty == 'semicolon') r.push(new WSemicolon());
+				else if(ty == 'comma') r.push(new WComma());
 				else error('Invalid token type: ' + ty);
 			} else {
 				if(ty == 'open' && br == v) t.push(c), lv++;
@@ -333,6 +338,18 @@ var Wortel = (function() {
 		o.push(this);
 	};
 
+	// Semicolon
+	function WSemicolon() {};
+	extend(WSemicolon, WExpr);
+	WSemicolon.prototype.toString = function() {return 'WSemicolon'};
+	WSemicolon.prototype.getArgs = function(a, o) {o.push(this)};
+	
+	// Comma
+	function WComma() {};
+	extend(WComma, WExpr);
+	WComma.prototype.toString = function() {return 'WComma'};
+	WComma.prototype.getArgs = function() {};
+
 	// Number
 	function WNumber(n) {
 		this.val = n;
@@ -400,17 +417,22 @@ var Wortel = (function() {
 			n.reversed = true;
 		else if(this.quoted && !this.op.unquotable) o.push(this);
 		else {
-			var l = op[this.val].length, args = [];
+			var l = op[this.val].length, args = [], first = false;
+			if(o.length == 0) first = true;
 			var quotes = [].concat(this.op.quotes); if(this.reversed) quotes.reverse();
-			var i = 0, sl = o.length;
-			while(args.length < l && (a.length > 0 || (o.length - sl) > 0)) {
-				if(o.length > sl)
-					args.push(o.pop());
-				else if(a[0] instanceof WSymbol && quotes[i] && !a[0].op.unquotable)
-					args.push(a.shift());
-				else a.shift().getArgs(a, o);
-				i++;
+			var i = 0;
+			while(args.length < l && (a.length > 0 || o.length > 0)) {
+				var last = o[o.length-1];
+				if(o.length > 0 && !(last instanceof WSemicolon)) args.push(o.pop()), i++;
+				else if(a[0] instanceof WComma) break;
+				else if(a.length > 0) {
+					if(a[0] instanceof WSymbol && quotes[i] && !a[0].op.unquotable) args.push(a.shift());
+					else a.shift().getArgs(a, o);
+				} else if(last instanceof WSemicolon) {o.pop(); break}
 			}
+			if(first && args.length > 0 && (this.op.infix ||
+				(this.op.length == 2 && BINARY_IS_INFIX && this.op.infix !== false)))
+				this.addfirst = true;
 			o.push(new WCall(this, args));
 		}
 	};
@@ -525,8 +547,10 @@ var Wortel = (function() {
 			var fa = [].concat(f.op.fnargs); if(f.reversed) fa.reverse();
 			for(var i = 0, ll = a.length, fnargs = false; i < ll; i++)
 				if(!fa[i] && a[i].isFn()) {fnargs = true; break}
-			if(a.length < f.op.length || any(isPlaceholder, a) || fnargs)
+			if(a.length < f.op.length || any(isPlaceholder, a) || fnargs) {
+				if(f.addfirst) a.unshift(placeholder);
 				return new WPartial(f, a);
+			}
 			return f.op.compile.apply(f.op, f.reversed? a.reverse(): a);
 		} else if(any(isPlaceholder, a)) return new WPartial(f, a);
 		return new WCall(f, a);
@@ -677,6 +701,7 @@ var Wortel = (function() {
 	};
 	op['!!'] = {
 		fnargs: [true, true, true],
+		infix: true,
 		compile: function(f, a, b) {return new WCall(f, [a, b])}
 	};
 	op['&'] = {
@@ -708,16 +733,19 @@ var Wortel = (function() {
 	// Partial
 	op['\\'] = {
 		unquotable: true,
+		infix: false,
 		quotes: [true, true],
 		compile: function(f, a) {return new WPartial(f, [a])}
 	};
 	op['@\\'] = {
 		unquotable: true,
+		infix: false,
 		quotes: [true, true],
 		compile: function(f, a) {return new WPartial(f, [placeholder, a])}
 	};
 	op['&\\'] = {
 		unquotable: true,
+		infix: false,
 		quotes: [true, false],
 		compile: function(f, a) {return new WPartial(f, a.val)}
 	};
