@@ -1,5 +1,5 @@
 /* Wortel compiler
- * @version: 0.1
+ * @version: 0.2
  * @author: Albert ten Napel
  * @email: aptennap@gmail.com
  * @github: atennapel
@@ -257,6 +257,22 @@ var Wortel = (function() {
 			}
 		}
 		if(br) error('Unclosed bracket: ' + br);
+
+		// handle infix operators (range and meta)
+		for(var i = 0; i < r.length; i++) {
+			var c = r[i], p = r[i-1], n = r[i+1];
+			if(c instanceof WSymbol) {
+				if(c.val == '..' ||
+					 c.val == '^..' ||
+					 c.val == '..^' ||
+					 c.val == '^..^' ||
+					 c.val == "'") {
+					if(p) r.splice(i-1, 1), i--;
+					if(n) r.splice(i+1, 1);
+					r[i] = new WCall(c, [p || placeholder, n || placeholder]);
+				}
+			}
+		}
 	
 		// Give args to operators
 		var o = [];
