@@ -348,6 +348,11 @@ var Wortel = (function() {
 		if(checkArray(this, a, o)) return;
 		o.push(this);
 	};
+	WExpr.prototype.addMeta = function(o) {
+		this.meta = this.meta || [];
+		this.meta.push(o);
+		return this;
+	};
 
 	// Number
 	function WNumber(n) {
@@ -534,7 +539,7 @@ var Wortel = (function() {
 	};
 	extend(WCall, WExpr);
 	WCall.prototype.optimize = function(i) {
-		var a = optimizeArray(this.args), f = this.fn;
+		var a = i > 0? optimizeArray(this.args): [].concat(this.args), f = this.fn;
 		if(f instanceof WSymbol && opti > 1) {
 			if(!f.op.compile)
 				error('Operator ' + f.val + ' does not have a compile function.');
@@ -567,7 +572,8 @@ var Wortel = (function() {
 	WPartial.prototype.compile = function() {error('Cannot compile a partial')};
 	WPartial.prototype.optimize = function(i) {
 		if(opti < 3) return this;
-		var a = this.args, args = this.targs || [], l = a.length, fa = [];
+		var a = optimizeArray(this.args), args = this.targs || [], l = a.length, fa = [];
+		console.log(this.fn + ';' + this.args);
 		if(this.fn instanceof WSymbol) {
 			l = this.fn.op.length;
 			if(a.length > l) error('Too many arguments for the partial application of ' + this.fn);
@@ -639,6 +645,22 @@ var Wortel = (function() {
 		return new WBinOp(this.op, this.a.optimize(), this.b.optimize());
 	};
 
+	// BinOp
+	function WUnOp(op, v) {
+		this.op = op;
+		this.val = v;
+	}
+	extend(WUnOp, WExpr);
+	WUnOp.prototype.toString = function() {
+		return '(' + this.op + ' ' + this.val + ')';
+	};
+	WUnOp.prototype.compile = function() {
+		return '(' + this.op + ' ' + this.val.compile() + ')';
+	};
+	WUnOp.prototype.optimize = function() {
+		return new WUnOp(this.op, this.val.optimize());
+	};
+
 	// Fn
 	function WFn(args, body, ret, name) {
 		this.name = name || '';
@@ -663,14 +685,15 @@ var Wortel = (function() {
 	var op = {};
 
 	// Math
+	op['@+'] = {compile: function(a) {return new WUnOp('+', a)}};
+	op['@-'] = {compile: function(a) {return new WUnOp('-', a)}};
+
 	op['+'] = {compile: function(a, b) {return new WBinOp('+', a, b)}};
 	op['-'] = {compile: function(a, b) {return new WBinOp('-', a, b)}};
 	op['*'] = {compile: function(a, b) {return new WBinOp('*', a, b)}};
 	op['/'] = {compile: function(a, b) {return new WBinOp('/', a, b)}};
 	op['%'] = {compile: function(a, b) {return new WBinOp('%', a, b)}};
-	op['@sum'] = {compile: function(a) {return new WCall(new WName('_sum'), [a])}};
-	op['@prod'] = {compile: function(a) {return new WCall(new WName('_prod'), [a])}};
-	op['@sqrt'] = {compile: function(a) {return new WCall(new WName('Math.sqrt'), [a])}};
+	op['!%'] = {compile: function(a, b) {return new WUnOp('!', new WBinOp('%', a, b))}};
 	op['@^'] = {compile: function(a, b) {return new WCall(new WName('Math.pow'), [a, b])}};
 
 	op['='] = {compile: function(a, b) {return new WBinOp('===', a, b)}};
@@ -742,13 +765,17 @@ var Wortel = (function() {
 	op['^'] = {
 		unquotable: true,
 		quotes: [true],
-		compile: function(x) {return new WPartial(x, [])}
+		compile: function(x) {
+			if(x instanceof WSymbol)
+				return new WPartial(x, []);
+			throw 'No compile function of ^ for ' + x;
+		}
 	};
 	op['~'] = {
 		length: 1
 	};
 	op["'"] = {
-		length: 2
+		compile: function(a, b) {return a.addMeta(b)}
 	};
 
 	// Range
