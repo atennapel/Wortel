@@ -8,7 +8,7 @@
  * TODO:
  */
 var Wortel = (function() {
-	var version = '0.1';
+	var version = '0.2';
 
 	var BRACKETS = '()[]{}';
 	var OPTIMIZATION_LEVEL = 4;
@@ -114,14 +114,6 @@ var Wortel = (function() {
 			var c = s[i] || ' ';
 			if(state == START) {
 				if(c == '"') state = DQSTRING;
-				else if(nextPart(s, i, 4) == '^..^')
-					i += 3, r.push({type: 'operator', val: '^..^'});
-				else if(nextPart(s, i, 3) == '..^')
-					i += 2, r.push({type: 'operator', val: '..^'});
-				else if(nextPart(s, i, 2) == '..')
-					i++, r.push({type: 'operator', val: '..'});
-				else if(nextPart(s, i, 3) == '^..')
-					i += 2, r.push({type: 'operator', val: '^..'});
 				else if(c == "'" && i > 0 && !isWhitespace(s[i-1]))
 					r.push({type: 'operator', val: "'"});
 				else if(c == "'") state = QF;
@@ -134,13 +126,13 @@ var Wortel = (function() {
 				else if(isIdent(c)) tmp = isWhitespace(s[i-1]), state = NAME, i--;
 				else if(isSymbol(c)) state = OPERATOR, i--;
 			} else if(state == NUMBER) {
-				if(nextPart(s, i, 2) == '..' || (!isDigit(c) && !isIdent(c) && c != '.')) {
+				if(!isDigit(c) && !isIdent(c) && c != '.') {
 					r.push({type: 'number', val: t.join('')});
 					t = [];
 					state = START, i--;
 				} else t.push(c);
 			} else if(state == NAME) {
-				if(nextPart(s, i, 2) == '..' || (!isDigit(c) && !isIdent(c) && c != ':')) {
+				if(!isDigit(c) && !isIdent(c) && c != ':') {
 					r.push({type: 'name', val: t.join(''), whitespace: tmp});
 					t = [];
 					state = START, i--;
@@ -258,15 +250,13 @@ var Wortel = (function() {
 		}
 		if(br) error('Unclosed bracket: ' + br);
 
-		// handle infix operators (range and meta)
+		console.log(r.join(' '));
+
+		// handle meta operator
 		for(var i = 0; i < r.length; i++) {
 			var c = r[i], p = r[i-1], n = r[i+1];
 			if(c instanceof WSymbol) {
-				if(c.val == '..' ||
-					 c.val == '^..' ||
-					 c.val == '..^' ||
-					 c.val == '^..^' ||
-					 c.val == "'") {
+				if(c.val == "'") {
 					if(p) r.splice(i-1, 1), i--;
 					if(n) r.splice(i+1, 1);
 					r[i] = new WCall(c, [p || placeholder, n || placeholder]);
@@ -278,6 +268,8 @@ var Wortel = (function() {
 		var o = [];
 		while(r.length > 0)
 			r.shift().getArgs(r, o);
+
+		console.log(o.join(' '));
 
 		return o;
 	}
@@ -768,6 +760,11 @@ var Wortel = (function() {
 		compile: function(x) {
 			if(x instanceof WSymbol)
 				return new WPartial(x, []);
+			else if(x instanceof WObject) {
+				var a = x.val;
+				return new WCall(new WName('_range'), [a[0], a[1]]);
+			} else if(x instanceof WNumber)
+				return new WCall(new WName('_range'), [new WNumber(1), x]);
 			throw 'No compile function of ^ for ' + x;
 		}
 	};
@@ -776,20 +773,6 @@ var Wortel = (function() {
 	};
 	op["'"] = {
 		compile: function(a, b) {return a.addMeta(b)}
-	};
-
-	// Range
-	op['..'] = {
-		compile: function(x, y) {return new WCall(new WName('_range'), [x, y])}
-	};
-	op['^..'] = {
-		compile: function(x, y) {return new WCall(new WName('_range'), [x, y])}
-	};
-	op['..^'] = {
-		compile: function(x, y) {return new WCall(new WName('_range'), [x, y])}
-	};
-	op['^..^'] = {
-		compile: function(x, y) {return new WCall(new WName('_range'), [x, y])}
 	};
 
 	function normalizeOps() {

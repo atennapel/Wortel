@@ -15,8 +15,6 @@ Comment:
 - Operators -
 Regular:	`~!@#$%^&*-+=:;|\/?><,
 Meta: 		+'M
-Dot:			a.b.c
-Range:		.. ^.. ..^ ^..^
 
 - Meta -
 Call: 				f(1, 2, 3)
@@ -24,10 +22,13 @@ Index:				a[1, 2, 3]
 Smart index: 	x{1, 2, 3}
 
 - Semitypes -
+Rank:						_ 0 1 2 3
 Scalar:					s
-Array: 					a a2
-Changing array: A A2
+Array: 					a
+Changing array: A
+Filling array:	F
 Object:					o
+Function:				f
 
 :'A myarray [1 2 3]
 + myarray 1
