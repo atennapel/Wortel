@@ -1,31 +1,20 @@
 /* Wortel compiler
- * @version: 0.3
+ * @version: 0.2
  * @author: Albert ten Napel
  * @email: aptennap@gmail.com
  * @github: atennapel
  * @date: 2014-08-30
  *
- * tokenize -> toAST -> compile -> reduce -> toJs
- *
  * TODO:
- * 	
  */
 var Wortel = (function() {
-	var version = '0.3';
+	var version = '0.2';
 
 	var BRACKETS = '()[]{}';
+	var OPTIMIZATION_LEVEL = 4;
 	var DEBUG = false;
-	var FILTER_SEMICOLON = true;
 
 	// util
-	function obj(o) {
-		o = o || {};
-		o.init = o.init || function() {};
-		o.extend = o.extend || null;
-		if(o.extend) o.init.prototype = Object.create(o.extend.prototype);
-		if(o) for(var m in o) if(m != 'init' && m != 'extend') o.init.prototype[m] = o[m];
-		return o.init;
-	}
 	function merge(a, b) {for(var k in a) b[k] = a[k]; return b};
 	function wrap(x) {return Array.isArray(x)? x: [x]};
 	function wWrap(x) {return x instanceof WArray? x: new WArray([x])};
@@ -231,8 +220,6 @@ var Wortel = (function() {
 	}
 
 	function toAST(a) {
-		if(FILTER_SEMICOLON)
-			a = a.filter(function(x) {return x.type != 'operator' || x.val != ';'});
 		var br = null, lv = 0, t = [], r = [], w = false;
 		for(var i = 0, l = a.length; i < l; i++) {
 			var c = a[i], ty = c.type, v = c.val;
@@ -315,351 +302,400 @@ var Wortel = (function() {
 	}
 
 	function compile(s) {
-		//return new WSemiGroup(toAST(tokenize(s))).compile().toJs();
-		return new WSemiGroup(toAST(tokenize(s))).compile();
+		return optimize(new WSemiGroup(toAST(tokenize(s)))).compile();
+		//return optimize(new WSemiGroup(toAST(tokenize(s))));
+	}
+
+	function optimizeArray(a) {
+		return a.map(function(x) {return x.optimize()});
+	}
+
+	var opti;
+	function optimize(c) {
+		for(opti = 0; opti < OPTIMIZATION_LEVEL; opti++) {
+			console.log('optimize #' + (opti) + ': ' + (c+''));
+			var h = null, c = c.optimize(), t = c.hash();
+			while(t !== h) {
+				console.log('optimize #' + (opti) + ': ' + (c + ''));
+				h = t, c = c.optimize(), t = c.hash();
+			}
+		}
+		return c;
 	}
 
 	function compileAll(a) {
 		return a.map(function(x) {return x.compile()});
 	}
 	// Expr
-	var WExpr = obj({
-		toString: function() {return 'WExpr'},
-		isPlaceholder: function() {return false},
-		isFn: function() {return false},
-		toJs: function() {error('Cannot compile to Javascript ' + this)},
-		compile: function() {return this},
-		reduce: function() {return this},
-		getArgs: function(a, o) {
-			if(checkIndexer(this, a, o)) return;
-			if(checkGroup(this, a, o)) return;
-			if(checkArray(this, a, o)) return;
-			o.push(this);
-		},
-		addMeta: function(o) {
-			this.meta = this.meta || [];
-			this.meta.push(o);
-			return this;
-		}
-	});
+	function WExpr(val) {};
+	WExpr.prototype.toString = function() {return 'WExpr'};
+	WExpr.prototype.isPlaceholder = function() {return false};
+	WExpr.prototype.isFn = function() {return false};
+	WExpr.prototype.compile = function() {error('Cannot compile ' + this)};
+	WExpr.prototype.optimize = function() {return this};
+	WExpr.prototype.hash = function() {return this.toString()};
+	WExpr.prototype.getArgs = function(a, o) {
+		if(checkIndexer(this, a, o)) return;
+		if(checkGroup(this, a, o)) return;
+		if(checkArray(this, a, o)) return;
+		o.push(this);
+	};
+	WExpr.prototype.addMeta = function(o) {
+		this.meta = this.meta || [];
+		this.meta.push(o);
+		return this;
+	};
 
 	// Number
-	function compileNumber(s) {
-		var str = s.replace(/\$|\_/g, '');
-		if(/^0x[0-9a-f]+$/i.test(str)) return str;
-		else if(/^0b[01]+$/i.test(str)) return parseInt(str.slice(2), 2);
-		else if(/^0o[0-7]+$/i.test(str)) return parseInt(str.slice(2), 8);
-		else if(/^[0-9]+x[0-9]+$/.test(str)) {
-			var f = str.match(/^[0-9]+x/)[0];
-			return ''+parseInt(str.slice(f.length), +f.slice(0, -1));
-		}
-		else if(/^[0-9]*\.[0-9]+$|^[0-9]+$/.test(str)) return str;
-		else if(/^([0-9]*\.[0-9]+|[0-9]+)N$/.test(str)) return '-' + str.slice(0, -1);
-		else error('Invalid number ' + s);
-	}
-	var WNumber = obj({
-		extend: WExpr,
-		init: function(n) {
-			this.val = n;
-		},
-		toString: function() {return this.val},
-		toJs: function() {return ''+this},
-		compile: function() {
-			return new WNumber(compileNumber(this.val));
-		}
-	});
+	function WNumber(n) {
+		this.val = n;
+	};
+	extend(WNumber, WExpr);
+	WNumber.prototype.toString = function() {return this.val};
+	WNumber.prototype.compile = function() {return ''+this};
 
 	// Name
 	function isPlaceholder(x) {return x.isPlaceholder()};
-	var WName = obj({
-		extend: WExpr,
-		init: function(n, w) {
-			this.val = n;
-			this.whitespace = w;
-		},
-		toString: function() {return this.val},
-		isPlaceholder: function() {return this.val == '.'},
-		isIndexer: function() {return this.val[0] == '.' && !this.isPlaceholder()},
-		indexless: function() {
-			if(this.isIndexer())
-				return new WName(this.val.slice(1), this.whitespace);
-			else return this;
-		},
-		getArgs: function(a, o) {
-			if(checkIndexer(this, a, o)) return;
-			if(checkGroup(this, a, o)) return;
-			if(checkArray(this, a, o)) return;
-			o.push(this);
-		},
-		toJs: function() {return ''+this}
-	});
+	function WName(n, w) {
+		this.val = n;
+		this.whitespace = w;
+	};
+	extend(WName, WExpr);
+	WName.prototype.toString = function() {return this.val};
+	WName.prototype.isPlaceholder = function() {return this.val == '.'};
+	WName.prototype.isIndexer = function() {return this.val[0] == '.' && !this.isPlaceholder()};
+	WName.prototype.indexless = function() {
+		if(this.isIndexer())
+			return new WName(this.val.slice(1), this.whitespace);
+		else return this;
+	};
+	WName.prototype.getArgs = function(a, o) {
+		if(checkIndexer(this, a, o)) return;
+		if(checkGroup(this, a, o)) return;
+		if(checkArray(this, a, o)) return;
+		o.push(this);
+	};
+	WName.prototype.compile = function() {return ''+this};
 	var placeholder = new WName('.');
 
 	// String
-	var WString = obj({
-		extend: WExpr,
-		init: function(n) {
-			this.val = n;
-		},
-		toString: function() {return '"' + this.val + '"'},
-		toJs: function() {return ''+this}
-	});
+	function WString(n) {
+		this.val = n;
+	};
+	extend(WString, WExpr);
+	WString.prototype.toString = function() {return '"' + this.val + '"'};
+	WString.prototype.compile = function() {return ''+this};
 
 	// RegExp
-	var WRegExpr = obj({
-		extend: WExpr,
-		init: function(n, f) {
-			this.val = n;
-			this.flags = f;
-		},
-		toString: function() {
-			return '/' + this.val + '/' + this.flags;
-		},
-		toJs: function() {return ''+this}
-	});
+	function WRegExp(n, f) {
+		this.val = n;
+		this.flags = f;
+	};
+	extend(WRegExp, WExpr);
+	WRegExp.prototype.toString = function() {
+		return '/' + this.val + '/' + this.flags;
+	};
+	WRegExp.prototype.compile = function() {return ''+this};
 
 	// Symbol
-	var WSymbol = obj({
-		extend: WExpr,
-		init: function(n) {
-			this.val = n;
-			this.op = op[n];
-		},
-		toString: function() {
-			return (this.reversed? '~': '') + this.val;
-		},
-		getArgs: function(a, o) {
-			var n = a[0];
-			if(this.val == '~' && n instanceof WSymbol)
-				n.reversed = true;
-			else if(this.quoted && !this.op.unquotable) o.push(this);
-			else {
-				var l = op[this.val].length, args = [];
-				var quotes = [].concat(this.op.quotes); if(this.reversed) quotes.reverse();
-				var i = 0, sl = o.length;
-				while(args.length < l && (a.length > 0 || (o.length - sl) > 0)) {
-					if(o.length > sl)
-						args.push(o.pop());
-					else if(a[0] instanceof WSymbol && quotes[i] && !a[0].op.unquotable)
-						args.push(a.shift());
-					else a.shift().getArgs(a, o);
-					i++;
-				}
-				o.push(new WCall(this, args));
+	function WSymbol(n) {
+		this.val = n;
+		this.op = op[n];
+	};
+	extend(WSymbol, WExpr);
+	WSymbol.prototype.toString = function() {
+		return (this.reversed? '~': '') + this.val;
+	};
+	WSymbol.prototype.compile = function() {error('Cannot compile symbol: ' + this.val)};
+	WSymbol.prototype.getArgs = function(a, o) {
+		var n = a[0];
+		if(this.val == '~' && n instanceof WSymbol)
+			n.reversed = true;
+		else if(this.quoted && !this.op.unquotable) o.push(this);
+		else {
+			var l = op[this.val].length, args = [];
+			var quotes = [].concat(this.op.quotes); if(this.reversed) quotes.reverse();
+			var i = 0, sl = o.length;
+			while(args.length < l && (a.length > 0 || (o.length - sl) > 0)) {
+				if(o.length > sl)
+					args.push(o.pop());
+				else if(a[0] instanceof WSymbol && quotes[i] && !a[0].op.unquotable)
+					args.push(a.shift());
+				else a.shift().getArgs(a, o);
+				i++;
 			}
+			o.push(new WCall(this, args));
 		}
-	});
+	};
 
 	// List
-	var WList = obj({
-		extend: WExpr,
-		toString: function() {
-			return 'WList(' + this.val.join(' ') + ')';
-		}
-	});
+	function WList(val) {};
+	extend(WList, WExpr);
+	WList.prototype.toString = function() {
+		return 'WList(' + this.val.join(' ') + ')';
+	};
 
 	// Array
-	var WArray = obj({
-		extend: WList,
-		init: function(a, w) {
-			this.val = a;
-			this.whitespace = w;
-		},
-		toString: function() {
-			return '[' + this.val.join(' ') + ']';
-		},
-		toJs: function() {
-			return '[' + compileAll(this.val).join(', ') + ']';
-		},
-		getArgs: function(a, o) {
-			if(checkIndexer(this, a, o)) return;
-			if(checkArray(this, a, o)) return;
-			o.push(this);
-		},
-		compile: function() {
-			return new WArray(compileAll(this.val));
-		}
-	});
+	function WArray(a, w) {
+		this.val = a;
+		this.whitespace = w;
+	};
+	extend(WArray, WList);
+	WArray.prototype.toString = function() {
+		return '[' + this.val.join(' ') + ']';
+	};
+	WArray.prototype.compile = function() {
+		return '[' + compileAll(this.val).join(', ') + ']';
+	};
+	WArray.prototype.getArgs = function(a, o) {
+		if(checkIndexer(this, a, o)) return;
+		if(checkArray(this, a, o)) return;
+		o.push(this);
+	};
+	WArray.prototype.optimize = function() {
+		return new WArray(optimizeArray(this.val), this.whitespace);
+	};
 	
 	// Group
-	var WGroup = obj({
-		extend: WList,
-		init: function(a, w) {
-			this.val = a;
-			this.whitespace = w;
-		},
-		toString: function() {
-			return '(' + this.val.join(' ') + ')';
-		},
-		toJs: function() {
-			return '(' + compileAll(this.val).join(', ') + ')';
-		},
-		getArgs: function(a, o) {
-			if(checkIndexer(this, a, o)) return;
-			if(checkGroup(this, a, o)) return;
-			if(checkArray(this, a, o)) return;
-			o.push(this);
-		},
-		compile: function() {
-			return new WGroup(compileAll(this.val));
-		}
-	});
+	function WGroup(a, w) {
+		this.val = a;
+		this.whitespace = w;
+	};
+	extend(WGroup, WList);
+	WGroup.prototype.toString = function() {
+		return '(' + this.val.join(' ') + ')';
+	};
+	WGroup.prototype.compile = function() {
+		return '(' + compileAll(this.val).join(', ') + ')';
+	};
+	WGroup.prototype.getArgs = function(a, o) {
+		if(checkIndexer(this, a, o)) return;
+		if(checkGroup(this, a, o)) return;
+		if(checkArray(this, a, o)) return;
+		o.push(this);
+	};
+	WGroup.prototype.optimize = function() {
+		var a = this.val, c = a[0];
+		if(a.length == 0) return new WName('undefined');
+		if(a.length == 1 && (
+			/*
+			c instanceof WPartial ||
+			c instanceof WCall 
+			*/ true
+		)) return c;
+		return new WGroup(optimizeArray(a), this.whitespace);
+	};
 
 	// Object
-	var WObject = obj({
-		extend: WList,
-		init: function(a, w) {
-			this.val = a;
-			this.whitespace = w;
-		},
-		toString: function() {
-			return '{' + this.val.join(' ') + '}';
-		},
-		toJs: function() {
-			for(var i = 0, a = this.val, l = a.length, r = []; i < l; i += 2)
-				r.push(a[i].toJs() + ': ' + a[i+1].toJs());
-			return '{' + r.join(', ') + '}';
-		},
-		getArgs: function(a, o) {
-			if(checkIndexer(this, a, o)) return;
-			if(checkArray(this, a, o)) return;
-			o.push(this);
-		},
-		compile: function() {
-			return new WObject(compileAll(this.val));
-		}
-	});
+	function WObject(a, w) {
+		this.val = a;
+		this.whitespace = w;
+	};
+	extend(WObject, WList);
+	WObject.prototype.toString = function() {
+		return '{' + this.val.join(' ') + '}';
+	};
+	WObject.prototype.compile = function() {
+		for(var i = 0, a = this.val, l = a.length, r = []; i < l; i += 2)
+			r.push(a[i].compile() + ': ' + a[i+1].compile());
+		return '{' + r.join(', ') + '}';
+	};
+	WObject.prototype.getArgs = function(a, o) {
+		if(checkIndexer(this, a, o)) return;
+		if(checkArray(this, a, o)) return;
+		o.push(this);
+	};
+	WObject.prototype.optimize = function() {
+		return new WObject(optimizeArray(this.val), this.whitespace);
+	};
 
 	// SemiGroup
-	var WSemiGroup = obj({
-		extend: WList,
-		init: function(a) {
-			this.val = a;
-		},
-		toString: function() {
-			return '(' + this.val.join('; ') + ')';
-		},
-		toJs: function() {
-			return compileAll(this.val).join('; ');
-		},
-		compile: function() {
-			return new WSemiGroup(compileAll(this.val));
-		}
-	});
+	function WSemiGroup(a) {
+		this.val = a;
+	};
+	extend(WSemiGroup, WList);
+	WSemiGroup.prototype.toString = function() {
+		return '(' + this.val.join('; ') + ')';
+	};
+	WSemiGroup.prototype.compile = function() {
+		return compileAll(this.val).join('; ');
+	};
+	WSemiGroup.prototype.optimize = function() {
+		return new WSemiGroup(optimizeArray(this.val), this.whitespace);
+	};
 
 	// Call
-	var WCall = obj({
-		extend: WExpr,
-		init: function(fn, args) {
-			this.fn = fn;
-			this.args = args;
-		},
-		toString: function() {
-			return this.fn + '(' + this.args.join(' ') + ')';	
-		},
-		toJs: function() {
-			return this.fn.toJs() + '(' + compileAll(this.args).join(', ') + ')';	
-		},
-		compile: function() {
-			var a = compileAll(this.args);
-			if(this.fn instanceof WSymbol) {
-				var o = this.fn.op, c = o.compile;
-				if(o.length != a.length)
-					error('Invalid amount of arguments for ' + this.fn);
-				if(this.fn.reversed) a.reverse();
-				if(typeof c == 'string')
-					return new WCall(new WName(c), a);
-				return c.apply(o, a);
-			}
-			return this;
-		}
-	});
+	function WCall(fn, args) {
+		this.fn = fn;
+		this.args = args;
+	};
+	extend(WCall, WExpr);
+	WCall.prototype.optimize = function(i) {
+		var a = i > 0? optimizeArray(this.args): [].concat(this.args), f = this.fn;
+		if(f instanceof WSymbol && opti > 1) {
+			if(!f.op.compile)
+				error('Operator ' + f.val + ' does not have a compile function.');
+			var fa = [].concat(f.op.fnargs); if(f.reversed) fa.reverse();
+			for(var i = 0, ll = a.length, fnargs = false; i < ll; i++)
+				if(!fa[i] && a[i].isFn()) {fnargs = true; break}
+			if(a.length < f.op.length || any(isPlaceholder, a) || fnargs)
+				return new WPartial(f, a);
+			return f.op.compile.apply(f.op, f.reversed? a.reverse(): a);
+		} else if(any(isPlaceholder, a)) return new WPartial(f, a);
+		return new WCall(f, a);
+	};
+	WCall.prototype.toString = function() {
+		return this.fn + '(' + this.args.join(' ') + ')';	
+	};
+	WCall.prototype.compile = function() {
+		return this.fn.compile() + '(' + compileAll(this.args).join(', ') + ')';	
+	};
 	
 	// Partial
-	var WPartial = obj({
-		extend: WCall,
-		init: function(fn, args) {
-			this.fn = fn;
-			this.args = args;
-		},
-		isFn: function() {return true},
-		toString: function() {
-			return this.fn + '{' + this.args.join(' ') + '}';
-		},
-		toJs: function() {error('Cannot compile a partial')}
-	});
+	function WPartial(fn, args)	{
+		this.fn = fn;
+		this.args = args;
+	};
+	extend(WPartial, WCall);
+	WPartial.prototype.isFn = function() {return true};
+	WPartial.prototype.toString = function() {
+		return this.fn + '{' + this.args.join(' ') + '}';
+	};
+	WPartial.prototype.compile = function() {error('Cannot compile a partial')};
+	WPartial.prototype.optimize = function(i) {
+		if(opti < 3) return this;
+		var a = optimizeArray(this.args), args = this.targs || [], l = a.length, fa = [];
+		console.log(this.fn + ';' + this.args);
+		if(this.fn instanceof WSymbol) {
+			l = this.fn.op.length;
+			if(a.length > l) error('Too many arguments for the partial application of ' + this.fn);
+			while(a.length < l) a.push(placeholder);
+			fa = [].concat(this.fn.op.fnargs); if(this.fn.reversed) fa.reverse();
+		}
+		for(var i = 0; i < l; i++) {
+			if(a[i].isPlaceholder()) {
+				var v = uvar();
+				a[i] = v;
+				args.push(v);
+			} else if(a[i] instanceof WPartial && !fa[i]) {
+				a[i].nofn = true;
+				a[i].targs = args;
+				a[i] = a[i].optimize();
+			} else a[i] = a[i].optimize();
+		}
+		if(this.nofn)
+			return new WCall(this.fn, a);
+		return new WFn(new WGroup(args), new WCall(this.fn, a));
+	};
 
 	// Index
-	var WIndex = obj({
-		extend: WExpr,
-		init: function(obj, inx) {
-			this.obj = obj;
-			this.inx = inx;
-		},
-		toString: function() {
-			return this.obj + '[' + this.inx.join(' ') + ']';
-		},
-		toJs: function() {
-			return this.obj.toJs() + '[' + compileAll(this.inx).join(', ') + ']';
-		}
-	});
+	function WIndex(obj, inx) {
+		this.obj = obj;
+		this.inx = inx;
+	}
+	extend(WIndex, WExpr);
+	WIndex.prototype.toString = function() {
+		return this.obj + '[' + this.inx.join(' ') + ']';
+	};
+	WIndex.prototype.compile = function() {
+		return this.obj.compile() + '[' + compileAll(this.inx).join(', ') + ']';
+	};
+	WIndex.prototype.optimize = function() {
+		return new WIndex(this.obj.optimize(), this.inx.optimize());
+	};
 	
 	// Index
-	var WProp = obj({
-		extend: WExpr,
-		init: function(obj, prop) {
-			this.obj = obj;
-			this.prop = prop;
-		},
-		toString: function() {
-			return this.obj + '.' + this.prop;
-		},
-		toJs: function() {
-			return this.obj.toJs() + '.' + this.prop.toJs();
-		}
-	});
+	function WProp(obj, prop) {
+		this.obj = obj;
+		this.prop = prop;
+	}
+	extend(WProp, WExpr);
+	WProp.prototype.toString = function() {
+		return this.obj + '.' + this.prop;
+	};
+	WProp.prototype.compile = function() {
+		return this.obj.compile() + '.' + this.prop.compile();
+	};
+	WProp.prototype.optimize = function() {
+		return new WProp(this.obj.optimize(), this.prop.optimize());
+	};
+
+	// BinOp
+	function WBinOp(op, a, b) {
+		this.op = op;
+		this.a = a;
+		this.b = b;	
+	}
+	extend(WBinOp, WExpr);
+	WBinOp.prototype.toString = function() {
+		return '(' + this.a + ' ' + this.op + ' ' + this.b + ')';
+	};
+	WBinOp.prototype.compile = function() {
+		return '(' + this.a.compile() + ' ' + this.op + ' ' + this.b.compile() + ')';
+	};
+	WBinOp.prototype.optimize = function() {
+		return new WBinOp(this.op, this.a.optimize(), this.b.optimize());
+	};
+
+	// BinOp
+	function WUnOp(op, v) {
+		this.op = op;
+		this.val = v;
+	}
+	extend(WUnOp, WExpr);
+	WUnOp.prototype.toString = function() {
+		return '(' + this.op + ' ' + this.val + ')';
+	};
+	WUnOp.prototype.compile = function() {
+		return '(' + this.op + ' ' + this.val.compile() + ')';
+	};
+	WUnOp.prototype.optimize = function() {
+		return new WUnOp(this.op, this.val.optimize());
+	};
 
 	// Fn
-	var WFn = obj({
-		extend: WExpr,
-		init: function(args, body, ret, name) {
-			this.name = name || '';
-			this.args = gWrap(args);
-			this.body = body;
-			this.ret = undef(ret)? true: ret;
-		},
-		toString: function() {
-			return 'Fn ' + this.name + this.args + ' ' + this.body;
-		},
-		toJs: function() {
-			if(this.ret)
-				return 'function ' + this.name +  this.args.toJs() + ' {return ' + this.body.toJs() + '}';
-			return 'function ' + this.name +  this.args.toJs() + ' {' + this.body.toJs() + '}';
-		}
-	});
+	function WFn(args, body, ret, name) {
+		this.name = name || '';
+		this.args = gWrap(args);
+		this.body = body;
+		this.ret = undef(ret)? true: ret;
+	}
+	extend(WFn, WExpr);
+	WFn.prototype.toString = function() {
+		return 'Fn ' + this.name + this.args + ' ' + this.body;
+	};
+	WFn.prototype.optimize = function() {
+		return new WFn(this.args, this.body.optimize(), this.ret, this.name);
+	};
+	WFn.prototype.compile = function() {
+		if(this.ret)
+			return 'function ' + this.name +  this.args.compile() + ' {return ' + this.body.compile() + '}';
+		return 'function ' + this.name +  this.args.compile() + ' {' + this.body.compile() + '}';
+	};
 	
 	// operators
 	var op = {};
 
 	// Math
-	op['@+'] = {length: 1, compile: 'unary_plus'};
-	op['@-'] = {length: 1, compile: 'negate'};
+	op['@+'] = {compile: function(a) {return new WUnOp('+', a)}};
+	op['@-'] = {compile: function(a) {return new WUnOp('-', a)}};
 
-	op['+'] = {length: 2, compile: 'add'};
-	op['-'] = {length: 2, compile: 'sub'};
-	op['*'] = {length: 2, compile: 'mul'};
-	op['/'] = {length: 2, compile: 'div'};
-	op['%'] = {length: 2, compile: 'rem'};
-	op['@^'] = {length: 2, compile: 'Math.pow'};
+	op['+'] = {compile: function(a, b) {return new WBinOp('+', a, b)}};
+	op['-'] = {compile: function(a, b) {return new WBinOp('-', a, b)}};
+	op['*'] = {compile: function(a, b) {return new WBinOp('*', a, b)}};
+	op['/'] = {compile: function(a, b) {return new WBinOp('/', a, b)}};
+	op['%'] = {compile: function(a, b) {return new WBinOp('%', a, b)}};
+	op['!%'] = {compile: function(a, b) {return new WUnOp('!', new WBinOp('%', a, b))}};
+	op['@^'] = {compile: function(a, b) {return new WCall(new WName('Math.pow'), [a, b])}};
 
-	op['='] = {length: 2, compile: 'seq'};
-	op['!='] = {length: 2, compile: 'sneq'};
-	op['=='] = {length: 2, compile: 'eq'};
-	op['!=='] = {length: 2, compile: 'neq'};
-	op['>'] = {length: 2, compile: 'gr'};
-	op['<'] = {length: 2, compile: 'ls'};
-	op['>='] = {length: 2, compile: 'greq'};
-	op['<='] = {length: 2, compile: 'lseq'};
+	op['='] = {compile: function(a, b) {return new WBinOp('===', a, b)}};
+	op['!='] = {compile: function(a, b) {return new WBinOp('!==', a, b)}};
+	op['=='] = {compile: function(a, b) {return new WBinOp('==', a, b)}};
+	op['!=='] = {compile: function(a, b) {return new WBinOp('!=', a, b)}};
+	op['>'] = {compile: function(a, b) {return new WBinOp('>', a, b)}};
+	op['<'] = {compile: function(a, b) {return new WBinOp('<', a, b)}};
+	op['>='] = {compile: function(a, b) {return new WBinOp('>=', a, b)}};
+	op['<='] = {compile: function(a, b) {return new WBinOp('<=', a, b)}};
 
 	// Function
 	op['!'] = {
@@ -668,8 +704,7 @@ var Wortel = (function() {
 	};
 	op['@!'] = {
 		fnargs: [true, false],
-		length: 2,
-		compile: 'apply'
+		compile: function(f, a) {return new WCall(new WName('_apply'), [f, a])}
 	};
 	op['!!'] = {
 		fnargs: [true, true, true],
@@ -682,28 +717,23 @@ var Wortel = (function() {
 
 	// Array
 	op['#'] = {
-		length: 1,
-		compile: 'length'
+		compile: function(a) {return new WCall(new WName('_length'), [a])}
 	};
 	op['!*'] = {
 		fnargs: [true, false],
-		length: 2,
-		compile: 'map'
+		compile: function(f, a) {return new WCall(new WName('_map'), [f, a])}
 	};
 	op['!/'] = {
 		fnargs: [true, false],
-		length: 2,
-		compile: 'fold'
+		compile: function(f, a) {return new WCall(new WName('_fold'), [f, a])}
 	};
 	op['!-'] = {
 		fnargs: [true, false],
-		length: 2,
-		compile: 'filter'
+		compile: function(f, a) {return new WCall(new WName('_filter'), [f, a])}
 	};
 	op['@#'] = {
 		fnargs: [true, false],
-		length: 2,
-		compile: 'count'
+		compile: function(f, a) {return new WCall(new WName('_count'), [f, a])}
 	};
 
 	// Partial
@@ -732,28 +762,23 @@ var Wortel = (function() {
 				return new WPartial(x, []);
 			else if(x instanceof WObject) {
 				var a = x.val;
-				return new WCall(new WName('range'), [a[0], a[1]]);
+				return new WCall(new WName('_range'), [a[0], a[1]]);
 			} else if(x instanceof WNumber)
-				return new WCall(new WName('range'), [new WNumber(1), x]);
-			error('No compile function of ^ for ' + x);
+				return new WCall(new WName('_range'), [new WNumber(1), x]);
+			throw 'No compile function of ^ for ' + x;
 		}
 	};
 	op['~'] = {
-		length: 1,
-		compile: function() {}
+		length: 1
 	};
 	op["'"] = {
 		compile: function(a, b) {return a.addMeta(b)}
-	};
-	op[';'] = {
-		compile: function() {}
 	};
 
 	function normalizeOps() {
 		for(var k in op) {
 			var o = op[k];
-			if(!o.compile) error('Operator ' + k + ' does not have a compile function');
-			if(undef(o.length)) o.length = typeof o.compile == 'string'? 1: o.compile.length;
+			if(undef(o.length)) o.length = o.compile.length;
 			if(undef(o.fnargs)) {
 				for(var i = 0, l = o.length, a = []; i < l; i++)
 					a.push(false);
@@ -829,8 +854,8 @@ if(typeof global != 'undefined' && global) {
 				fs.readFile(f, 'ascii', function(e, s) {
 					if(e) console.log('Error: ', e);
 					else if(t == '--run' || t == '-r')
-						eval(Wortel.toJs(s));
-					else console.log(Wortel.toJs(s));
+						eval(Wortel.compile(s));
+					else console.log(Wortel.compile(s));
 				});
 			}
 		}
