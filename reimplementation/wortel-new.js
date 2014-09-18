@@ -16,6 +16,21 @@ var Wortel = (function() {
 	var BRACKETS = '()[]{}';
 	var DEBUG = false;
 	var FILTER_SEMICOLON = true;
+	var JS_UNARY = {
+		'delete': true, 'void': true, 'typeof': true, '++': true,
+		'--': true, '+': true, '-': true, '~': true, '!': true
+	};
+	var JS_BINARY = {
+		'+': true, '-': true, '*': true, '/': true, '%': true,
+		'<<': true, '>>': true, '>>>': true, '&': true, '|': true, '^': true,
+		'<': true, '>': true, '<=': true, '>=': true, '==': true, '===': true, '!=': true, '!==': true,
+		'=': true, '*=': true, '/=': true, '%=': true, '+=': true, '-=': true, '<<=': true, '>>=': true, '>>>=': true, '&=': true, '^=': true, '|=': true,
+		'&&': true, '||': true,
+		',': true
+	};
+	var JS_TERNARY = {
+		'?:': true
+	};
 
 	// util
 	function obj(o) {
@@ -119,14 +134,14 @@ var Wortel = (function() {
 		var START = 0, NUMBER = 1, NAME = 2, DQSTRING = 3;
 		var COMMENT = 4, BLCOMMENT = 5, OPERATOR = 6, NAMEOPERATOR = 7;
 		var QF = 8, QSTRING = 9, QBSTRING = 10, REGEXP = 11, REGEXPT = 12;
-		var RXCOMMENT = 13, RXBLCOMMENT = 14;
+		var RXCOMMENT = 13, RXBLCOMMENT = 14, META = 15;
 		var state = START, esc = false, br = null, obr = null, lv = 0, tmp = null;
 		for(var i = 0, l = s.length+1, r = [], t = []; i < l; i++) {
 			var c = s[i] || ' ';
 			if(state == START) {
 				if(c == '"') state = DQSTRING;
 				else if(c == "'" && i > 0 && !isWhitespace(s[i-1]))
-					r.push({type: 'operator', val: "'"});
+					state = META, t.push(c);
 				else if(c == "'") state = QF;
 				else if(nextPart(s, i, 2) == ';;') i++, state = COMMENT;
 				else if(isOpeningBracket(c))
@@ -225,6 +240,9 @@ var Wortel = (function() {
 					lv--;
 					if(lv == 0) state = REGEXP;
 				}
+			} else if(state == META) {
+				if(c == "'") t.push(c);
+				else r.push({type: 'operator', val: t.join('')}), t = [], i--, state = START;
 			}
 		}
 		return r;
@@ -269,7 +287,7 @@ var Wortel = (function() {
 		for(var i = 0; i < r.length; i++) {
 			var c = r[i], p = r[i-1], n = r[i+1];
 			if(c instanceof WSymbol) {
-				if(c.val == "'") {
+				if(c.val[0] == "'") {
 					if(p) r.splice(i-1, 1), i--;
 					if(n) r.splice(i+1, 1);
 					r[i] = new WCall(c, [p || placeholder, n || placeholder]);
@@ -322,6 +340,10 @@ var Wortel = (function() {
 	function compileAll(a) {
 		return a.map(function(x) {return x.compile()});
 	}
+	function AllToJs(a) {
+		return a.map(function(x) {return x.toJs()});
+	}
+
 	// Expr
 	var WExpr = obj({
 		toString: function() {return 'WExpr'},
@@ -558,7 +580,18 @@ var Wortel = (function() {
 			return this.fn + '(' + this.args.join(' ') + ')';	
 		},
 		toJs: function() {
-			return this.fn.toJs() + '(' + compileAll(this.args).join(', ') + ')';	
+			var a = AllToJs(this.args);
+			if(this.fn instanceof WName) {
+				if(JS_UNARY[this.fn.val] && this.args.length == 1)
+					return '(' + this.fn.val + ' ' + a[0] + ')';
+				if(JS_BINARY[this.fn.val] && this.args.length == 2)
+					return '(' + a[0] + ' ' + this.fn.val + ' ' + a[1] + ')';
+				if(JS_TERNARY[this.fn.val] && this.args.length == 3) {
+					var ta = this.fn.val[0], tb = this.fn.val[1];
+					return '(' + a[0] + ' ' + ta + ' ' + a[1] + ' ' + tb + ' ' + a[2] + ')';
+				}
+			}
+			return this.fn.toJs() + '(' + a.join(', ') + ')';	
 		},
 		compile: function() {
 			var a = compileAll(this.args);
@@ -744,6 +777,9 @@ var Wortel = (function() {
 	};
 	op["'"] = {
 		compile: function(a, b) {return a.addMeta(b)}
+	};
+	op["''"] = {
+		compile: function(a, b) {return a}
 	};
 	op[';'] = {
 		compile: function() {}
