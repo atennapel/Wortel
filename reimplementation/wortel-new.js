@@ -26,13 +26,18 @@ var Wortel = (function() {
 		'<': true, '>': true, '<=': true, '>=': true, '==': true, '===': true, '!=': true, '!==': true,
 		'=': true, '*=': true, '/=': true, '%=': true, '+=': true, '-=': true, '<<=': true, '>>=': true, '>>>=': true, '&=': true, '^=': true, '|=': true,
 		'&&': true, '||': true,
-		',': true
+		',': true, 'instanceof': true, 'in': true
 	};
 	var JS_TERNARY = {
 		'?:': true
 	};
 
 	// util
+	function arrToObj(a) {
+		for(var i = 0, l = a.length, o = {}; i < l; i++)
+			o[a[i]] = true;
+		return o;
+	}
 	function obj(o) {
 		o = o || {};
 		o.init = o.init || function() {};
@@ -80,6 +85,16 @@ var Wortel = (function() {
 		for(var i = 0, l = a.length, r = []; i < l; i++)
 			for(var j = 0, k = a[i].length; j < k; j++)
 				r.push(a[i][j]);
+		return r;
+	}
+	function flattenr(a) {
+		for(var i = 0, l = a.length, r = []; i < l; i++) {
+			var c = a[i];
+			if(Array.isArray(c))
+				pushAll(r, flattenr(c));
+			else
+				r.push(c);
+		}
 		return r;
 	}
 	function pushAll(a, r) {
@@ -333,7 +348,7 @@ var Wortel = (function() {
 	}
 
 	function compile(s) {
-		//return new WSemiGroup(toAST(tokenize(s))).compile().toJs();
+		return new WSemiGroup(toAST(tokenize(s))).compile().toJs();
 		return new WSemiGroup(toAST(tokenize(s))).compile();
 	}
 
@@ -342,6 +357,39 @@ var Wortel = (function() {
 	}
 	function AllToJs(a) {
 		return a.map(function(x) {return x.toJs()});
+	}
+
+	// Types
+	var primtypes = 'abeflnosu'.split(''), primtypeso = arrToObj(primtypes);
+	var spectypes = 'xy'.split(''), spectypeso = arrToObj(spectypes);
+	var complextypes = {'A': 'ae', 'S': 'AN', 'T': 'AfN'};
+	function otherTypes(a) {
+		for(var i = 0, l = primtypes.length, r = []; i < l; i++)
+			if(a.indexOf(primtypes[i]) == -1)
+				r.push(primtypes[i])
+		return r;
+	}
+	function getTypes(t, s) {
+		for(var i = 0, t = t || 'w', l = t.length, s = s || []; i < l; i++) {
+			var c = t[i];
+			if(c == 'N') {
+				if(s.length == 0) error('invalid type negation (empty stack): ' + t);
+				s = otherTypes(s);
+			} else if(complextypes[c]) pushAll(s, getTypes(complextypes[c]));
+			else if(primtypeso[c] || spectypeso[c]) s.push(c);
+			else error('Invalid type: ' + c);
+		}
+		var a = s;
+		if(a.indexOf('y') > -1) return primtypes;
+		if(a.indexOf('x') > -1) return [];
+		return a;
+	}
+	function typecheck(t, c) {
+		var tt = getTypes(t), cc = getTypes(c);
+		for(var i = 0, l = tt.length; i < l; i++)
+			if(cc.indexOf(tt[i]) > -1)
+				return true;
+		return false;
 	}
 
 	// Expr
@@ -361,6 +409,11 @@ var Wortel = (function() {
 		addMeta: function(o) {
 			this.meta = this.meta || [];
 			this.meta.push(o);
+			return this;
+		},
+		type: 'y',
+		setType: function(t) {
+			this.type = t || 'y';
 			return this;
 		}
 	});
@@ -499,7 +552,7 @@ var Wortel = (function() {
 			o.push(this);
 		},
 		compile: function() {
-			return new WArray(compileAll(this.val));
+			return new WArray(compileAll(this.val)).setType(this.type);
 		}
 	});
 	
@@ -523,7 +576,7 @@ var Wortel = (function() {
 			o.push(this);
 		},
 		compile: function() {
-			return new WGroup(compileAll(this.val));
+			return new WGroup(compileAll(this.val)).setType(this.type);
 		}
 	});
 
@@ -548,7 +601,7 @@ var Wortel = (function() {
 			o.push(this);
 		},
 		compile: function() {
-			return new WObject(compileAll(this.val));
+			return new WObject(compileAll(this.val)).setType(this.type);
 		}
 	});
 
@@ -562,7 +615,7 @@ var Wortel = (function() {
 			return '(' + this.val.join('; ') + ')';
 		},
 		toJs: function() {
-			return compileAll(this.val).join('; ');
+			return AllToJs(this.val).join('; ');
 		},
 		compile: function() {
 			return new WSemiGroup(compileAll(this.val));
@@ -596,13 +649,13 @@ var Wortel = (function() {
 		compile: function() {
 			var a = compileAll(this.args);
 			if(this.fn instanceof WSymbol) {
-				var o = this.fn.op, c = o.compile;
+				var o = this.fn.op, c = o.compile, t = o.type;
 				if(o.length != a.length)
 					error('Invalid amount of arguments for ' + this.fn);
 				if(this.fn.reversed) a.reverse();
 				if(typeof c == 'string')
-					return new WCall(new WName(c), a);
-				return c.apply(o, a);
+					return new WCall(new WName(c), a).setType(t[1]);
+				return c.apply(o, a).setType(t[1]);
 			}
 			return this;
 		}
@@ -675,37 +728,35 @@ var Wortel = (function() {
 	var op = {};
 
 	// Math
-	op['@+'] = {length: 1, compile: 'unary_plus'};
-	op['@-'] = {length: 1, compile: 'negate'};
+	op['@+'] = {type: [[''], ''], length: 1, compile: '+'};
+	op['@-'] = {length: 1, compile: '-'};
 
-	op['+'] = {length: 2, compile: 'add'};
-	op['-'] = {length: 2, compile: 'sub'};
-	op['*'] = {length: 2, compile: 'mul'};
-	op['/'] = {length: 2, compile: 'div'};
-	op['%'] = {length: 2, compile: 'rem'};
+	op['+'] = {length: 2, compile: '+'};
+	op['-'] = {length: 2, compile: '-'};
+	op['*'] = {length: 2, compile: '*'};
+	op['/'] = {length: 2, compile: '/'};
+	op['%'] = {length: 2, compile: '%'};
 	op['@^'] = {length: 2, compile: 'Math.pow'};
 
-	op['='] = {length: 2, compile: 'seq'};
-	op['!='] = {length: 2, compile: 'sneq'};
-	op['=='] = {length: 2, compile: 'eq'};
-	op['!=='] = {length: 2, compile: 'neq'};
-	op['>'] = {length: 2, compile: 'gr'};
-	op['<'] = {length: 2, compile: 'ls'};
-	op['>='] = {length: 2, compile: 'greq'};
-	op['<='] = {length: 2, compile: 'lseq'};
+	op['='] = {length: 2, compile: '==='};
+	op['!='] = {length: 2, compile: '!=='};
+	op['=='] = {length: 2, compile: '=='};
+	op['!=='] = {length: 2, compile: '!='};
+	op['>'] = {length: 2, compile: '>'};
+	op['<'] = {length: 2, compile: '<'};
+	op['>='] = {length: 2, compile: '>='};
+	op['<='] = {length: 2, compile: '<='};
 
 	// Function
 	op['!'] = {
-		fnargs: [true, true],
 		compile: function(f, a) {return new WCall(f, [a])}
 	};
 	op['@!'] = {
-		fnargs: [true, false],
+		type: [['w', 'a'], 'w'],
 		length: 2,
 		compile: 'apply'
 	};
 	op['!!'] = {
-		fnargs: [true, true, true],
 		compile: function(f, a, b) {return new WCall(f, [a, b])}
 	};
 	op['&'] = {
@@ -779,7 +830,7 @@ var Wortel = (function() {
 		compile: function(a, b) {return a.addMeta(b)}
 	};
 	op["''"] = {
-		compile: function(a, b) {return a}
+		compile: function(a, b) {return a.setType(b.val)}
 	};
 	op[';'] = {
 		compile: function() {}
@@ -790,15 +841,15 @@ var Wortel = (function() {
 			var o = op[k];
 			if(!o.compile) error('Operator ' + k + ' does not have a compile function');
 			if(undef(o.length)) o.length = typeof o.compile == 'string'? 1: o.compile.length;
-			if(undef(o.fnargs)) {
-				for(var i = 0, l = o.length, a = []; i < l; i++)
-					a.push(false);
-				o.fnargs = a;
-			}
 			if(undef(o.quotes)) {
 				for(var i = 0, l = o.length, a = []; i < l; i++)
 					a.push(false);
 				o.quotes = a;
+			}
+			if(undef(o.type)) {
+				for(var i = 0, l = o.length, a = []; i < l; i++)
+					a.push('S');
+				o.quotes = [a, 'S'];
 			}
 		}
 	}

@@ -1,0 +1,17 @@
+a unextendable array
+b boolean
+e extendable array
+f function
+l null
+n number
+o object
+s string
+u undefined
+x nothing
+y any
+
+A ae
+S AN
+T AfN
+
+N negate
