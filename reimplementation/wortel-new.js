@@ -348,7 +348,7 @@ var Wortel = (function() {
 	}
 
 	function compile(s) {
-		return new WSemiGroup(toAST(tokenize(s))).compile().toJs();
+		//return new WSemiGroup(toAST(tokenize(s))).compile().toJs();
 		return new WSemiGroup(toAST(tokenize(s))).compile();
 	}
 
@@ -390,6 +390,10 @@ var Wortel = (function() {
 			if(cc.indexOf(tt[i]) > -1)
 				return true;
 		return false;
+	}
+	function typechecke(t, c, op) {
+		if(!typecheck(t, c))
+			error('Type error, expected ' + c + ' got ' + t + ' for operator ' + op);
 	}
 
 	// Expr
@@ -441,7 +445,8 @@ var Wortel = (function() {
 		toJs: function() {return ''+this},
 		compile: function() {
 			return new WNumber(compileNumber(this.val));
-		}
+		},
+		type: 'n'
 	});
 
 	// Name
@@ -477,7 +482,8 @@ var Wortel = (function() {
 			this.val = n;
 		},
 		toString: function() {return '"' + this.val + '"'},
-		toJs: function() {return ''+this}
+		toJs: function() {return ''+this},
+		type: 's'
 	});
 
 	// RegExp
@@ -553,7 +559,8 @@ var Wortel = (function() {
 		},
 		compile: function() {
 			return new WArray(compileAll(this.val)).setType(this.type);
-		}
+		},
+		type: 'a'
 	});
 	
 	// Group
@@ -602,7 +609,8 @@ var Wortel = (function() {
 		},
 		compile: function() {
 			return new WObject(compileAll(this.val)).setType(this.type);
-		}
+		},
+		type: 'o'
 	});
 
 	// SemiGroup
@@ -649,13 +657,17 @@ var Wortel = (function() {
 		compile: function() {
 			var a = compileAll(this.args);
 			if(this.fn instanceof WSymbol) {
-				var o = this.fn.op, c = o.compile, t = o.type;
+				var o = this.fn.op, c = o.compile, t = o.returntype;
 				if(o.length != a.length)
 					error('Invalid amount of arguments for ' + this.fn);
 				if(this.fn.reversed) a.reverse();
+				for(var i = 0, l = a.length; i < l; i++)
+					typechecke(a[i].type, o.argstype[i], this.fn.val);
+				if(o.method && typecheck(a[0].type, 'o'))
+					return method(a[0], o.method, a.slice(1))
 				if(typeof c == 'string')
-					return new WCall(new WName(c), a).setType(t[1]);
-				return c.apply(o, a).setType(t[1]);
+					return new WCall(new WName(c), a).setType(t);
+				return c.apply(o, a).setType(t);
 			}
 			return this;
 		}
@@ -704,6 +716,9 @@ var Wortel = (function() {
 			return this.obj.toJs() + '.' + this.prop.toJs();
 		}
 	});
+	function method(o, m, a) {
+		return new WCall(new WProp(o, typeof m == 'string'? new WName(m): m), a);
+	}
 
 	// Fn
 	var WFn = obj({
@@ -721,38 +736,39 @@ var Wortel = (function() {
 			if(this.ret)
 				return 'function ' + this.name +  this.args.toJs() + ' {return ' + this.body.toJs() + '}';
 			return 'function ' + this.name +  this.args.toJs() + ' {' + this.body.toJs() + '}';
-		}
+		},
+		type: 'f'
 	});
 	
 	// operators
 	var op = {};
 
 	// Math
-	op['@+'] = {type: [[''], ''], length: 1, compile: '+'};
-	op['@-'] = {length: 1, compile: '-'};
+	op['@+'] = {argstype: ['T'], returntype: 'n', method: 'valueOf', length: 1, compile: '+'};
+	op['@-'] = {argstype: ['T'], returntype: 'n', method: 'negate', length: 1, compile: '-'};
 
-	op['+'] = {length: 2, compile: '+'};
-	op['-'] = {length: 2, compile: '-'};
-	op['*'] = {length: 2, compile: '*'};
-	op['/'] = {length: 2, compile: '/'};
-	op['%'] = {length: 2, compile: '%'};
-	op['@^'] = {length: 2, compile: 'Math.pow'};
+	op['+'] = {argstype: ['T', 'T'], returntype: 'n', method: 'add', length: 2, compile: '+'};
+	op['-'] = {argstype: ['T', 'T'], returntype: 'n', method: 'sub', length: 2, compile: '-'};
+	op['*'] = {argstype: ['T', 'T'], returntype: 'n', method: 'mul', length: 2, compile: '*'};
+	op['/'] = {argstype: ['T', 'T'], returntype: 'n', method: 'div', length: 2, compile: '/'};
+	op['%'] = {argstype: ['T', 'T'], returntype: 'n', method: 'mod', length: 2, compile: '%'};
+	op['@^'] = {argstype: ['T', 'T'], returntype: 'n', method: 'pow', length: 2, compile: '@^'};
 
-	op['='] = {length: 2, compile: '==='};
-	op['!='] = {length: 2, compile: '!=='};
-	op['=='] = {length: 2, compile: '=='};
-	op['!=='] = {length: 2, compile: '!='};
-	op['>'] = {length: 2, compile: '>'};
-	op['<'] = {length: 2, compile: '<'};
-	op['>='] = {length: 2, compile: '>='};
-	op['<='] = {length: 2, compile: '<='};
+	op['='] = {argstype: ['T', 'T'], returntype: 'b', method: 'eq', length: 2, compile: '==='};
+	op['!='] = {argstype: ['T', 'T'], returntype: 'b', method: 'neq', length: 2, compile: '!=='};
+	op['=='] = {argstype: ['T', 'T'], returntype: 'b', length: 2, compile: '=='};
+	op['!=='] = {argstype: ['T', 'T'], returntype: 'b', length: 2, compile: '!='};
+	op['>'] = {argstype: ['T', 'T'], returntype: 'b', method: 'gr', length: 2, compile: '>'};
+	op['<'] = {argstype: ['T', 'T'], returntype: 'b', method: 'ls', length: 2, compile: '<'};
+	op['>='] = {argstype: ['T', 'T'], returntype: 'b', method: 'greq', length: 2, compile: '>='};
+	op['<='] = {argstype: ['T', 'T'], returntype: 'b', method: 'lseq', length: 2, compile: '<='};
 
 	// Function
 	op['!'] = {
 		compile: function(f, a) {return new WCall(f, [a])}
 	};
 	op['@!'] = {
-		type: [['w', 'a'], 'w'],
+		argstype: ['y', 'A'],
 		length: 2,
 		compile: 'apply'
 	};
@@ -760,32 +776,39 @@ var Wortel = (function() {
 		compile: function(f, a, b) {return new WCall(f, [a, b])}
 	};
 	op['&'] = {
+		returntype: 'f',
 		unquotable: true,
 		compile: function(a, b) {return new WFn(a, b)}
 	};
 
 	// Array
 	op['#'] = {
+		argstype: ['y', 'A'],
+		returntype: 'n',
 		length: 1,
 		compile: 'length'
 	};
 	op['!*'] = {
-		fnargs: [true, false],
+		argstype: ['f', 'A'],
+		returntype: 'a',
 		length: 2,
 		compile: 'map'
 	};
 	op['!/'] = {
-		fnargs: [true, false],
+		argstype: ['f', 'A'],
+		returntype: 'a',
 		length: 2,
 		compile: 'fold'
 	};
 	op['!-'] = {
-		fnargs: [true, false],
+		argstype: ['f', 'A'],
+		returntype: 'a',
 		length: 2,
 		compile: 'filter'
 	};
 	op['@#'] = {
-		fnargs: [true, false],
+		argstype: ['f', 'A'],
+		returntype: 'n',
 		length: 2,
 		compile: 'count'
 	};
@@ -846,11 +869,12 @@ var Wortel = (function() {
 					a.push(false);
 				o.quotes = a;
 			}
-			if(undef(o.type)) {
+			if(undef(o.argstype)) {
 				for(var i = 0, l = o.length, a = []; i < l; i++)
-					a.push('S');
-				o.quotes = [a, 'S'];
+					a.push('y');
+				o.argstype = a;
 			}
+			if(undef(o.returntype)) o.returntype = 'y';
 		}
 	}
 	normalizeOps();
