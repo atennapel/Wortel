@@ -174,13 +174,13 @@ var Miro = (function() {
 			var op = o[i], j = r.indexOf(op), s = op.op.style, args = [], sp = 0;
 			if(s == 'infix') {
 				var sp = j - 1, p = 1;
-				if(!r[j - 1] || r[j - 1] instanceof expr.Symbol) args.push(placeholder), sp = j;
+				if(!r[j - 1] || r[j - 1] instanceof expr.Symbol) args.push(op.op.nopapfirst? tempexpr: placeholder), sp = j;
 				else args.push(r[j - 1]), p++;
-				if(!r[j + 1] || r[j + 1] instanceof expr.Symbol) args.push(placeholder);
+				if(!r[j + 1] || r[j + 1] instanceof expr.Symbol) args.push(op.op.nopapsecond? tempexpr: placeholder);
 				else args.push(r[j + 1]), p++;
 				r.splice(sp, p, new expr.Call(op, args));
 			} else if(s == 'prefix') {
-				if(!r[j + 1] || r[j + 1] instanceof expr.Symbol) args.push(placeholder), sp++;
+				if(!r[j + 1] || r[j + 1] instanceof expr.Symbol) args.push(op.op.nopapfirst? tempexpr: placeholder), sp++;
 				else args.push(r[j + 1]);
 				r.splice(j, 2 - sp, new expr.Call(op, args));
 			} else if(s == 'nofix') {
@@ -234,7 +234,9 @@ var Miro = (function() {
 		addMeta: function(v) {this.meta = this.meta || []; this.meta.push(v); return this},
 		countPlaceholders: function() {return 0},
 		clone: function() {return this},
-		search: function(s) {}
+		search: function(s) {},
+		or: function() {return this},
+		temp: function() {return false}
 	});
 
 	extend(expr.Expr, function Number(v) {
@@ -252,6 +254,9 @@ var Miro = (function() {
 		clone: function() {return this === placeholder? placeholder: new expr.Name(this.val)}
 	});
 	var placeholder = new expr.Name('@_');
+	var tempexpr = new expr.Name('@TEMP');
+	tempexpr.or = function(x) {return x};
+	tempexpr.temp = function() {return true};
 	var _n = 0;
 	function uname() {return new expr.Name('_' + (_n++).toString(36))}
 
@@ -522,21 +527,23 @@ var Miro = (function() {
 		'->': {
 			precl: 3,
 			precr: 2,
+			nopapfirst: true,
 			style: 'infix',
 			compile: function(a, b) {
-				return new expr.Fn(a, b);
+				return new expr.Fn(a.or([]), b);
 			}
 		},
 		'=>': {
 			precl: 3,
 			precr: 2,
+			nopapfirst: true,
 			style: 'infix',
 			compile: function(a, b) {
 				return new expr.Call(
 					new expr.Call(
 						new expr.Symbol('.'),
 						[
-							new expr.Fn(a, b),
+							new expr.Fn(a.or([]), b),
 							new expr.Name('bind')
 						]
 					),
