@@ -1,0 +1,8 @@
+optimize call (+ (+ 1 @_) 1)
+optimize call (+ 1 @_)
+optimize call (+ {+ 1 @_} 1)
+optimize partial {+ 1 @_}
+1 '{+ 1 @_}'
+optimize call (+ (_0) -> ((+ 1 _0)) 1)
+optimize call (+ 1 _0)
+(function(_0) {; return ((1 + _0))} + 1)

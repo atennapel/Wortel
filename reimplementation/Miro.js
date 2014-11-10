@@ -1,9 +1,15 @@
+/* Miro
+ * @author: Albert ten Napel
+ *
+ * TODO:
+ * 	-> @_
+ */
 var Miro = (function() {
 	// TEMP
 	Array.prototype.toString = function() {return '@[' + this.join(' ') + ']'};
 	//
 
-	var version = 0.2;
+	var version = 0.3;
 
 	var nameoperator = '@';
 	var brackets = '()[]{}<>';
@@ -50,7 +56,7 @@ var Miro = (function() {
 				else if(nextPart(s, i, 2) == ';;') i++, state = COMMENT;
 				else if(c == '(' || c == '[' || c == '{') {
 					var last = r[r.length-1];
-					if(i > 0 && !isWhitespace(s[i-1]) &&
+					if(i > 0 && !isWhitespace(s[i-1]) && '([{'.indexOf(s[i-1]) == -1 &&
 					(!(last instanceof expr.Symbol) || (last instanceof expr.Symbol && last.op.namelike))) r.push(new expr.Symbol(
 						c == '('? '$apply':
 						c == '['? '$index':
@@ -319,7 +325,7 @@ var Miro = (function() {
 		toString: function() {return '(' + this.val.join(' ') + ')'},
 		optimize: function() {
 			var l = this.val.length;
-			if(l == 1) return this.val[0];
+			//if(l == 1) return this.val[0];
 			return new expr.Group(this.val.map(mOptimize));
 		},
 		compile: function() {return '(' + this.val.map(mCompile).join(', ') + ')'},
@@ -341,7 +347,8 @@ var Miro = (function() {
 	}, {
 		toString: function() {return '(' + this.fn + ' ' + this.val.join(' ') + ')'},
 		optimize: function() {
-			if(this.countPlaceholders() > 0)
+			console.log('optimize call', this+'');
+			if(this.fn === placeholder || containsPartial(this.val) || containsPlaceholder(this.val))
 				return new expr.Partial(this.fn, this.val);
 			if(this.fn instanceof expr.Symbol && this.fn.op.compile)
 				return this.fn.op.compile.apply(this.fn, this.val.map(mOptimize));
@@ -374,6 +381,12 @@ var Miro = (function() {
 		}
 	});
 
+	function containsPlaceholder(a) {
+		for(var i = 0, l = a.length; i < l; i++)
+			if(a[i] === placeholder)
+				return true;
+		return false;
+	}
 	function containsPartial(a) {
 		for(var i = 0, l = a.length; i < l; i++)
 			if(a[i] instanceof expr.Partial)
@@ -386,8 +399,10 @@ var Miro = (function() {
 	}, {
 		toString: function() {return '{' + this.fn + ' ' + this.val.join(' ') + '}'},
 		optimize: function() {
+			console.log('optimize partial', this+'');
 			var args = [], n = this.countPlaceholders();
-			if(n == 0) return new expr.Call(this.fn, this.val);
+			console.log(n, this+'');
+			if(n == 0) return this.toCall();
 			for(var i = 0; i < n; i++) args.push(uname());
 			var c = this.clone(), j = 0, todo = [];
 			c.search(todo);
@@ -406,6 +421,14 @@ var Miro = (function() {
 			s.push({parent: this, val: this.fn, prop: 'fn'});
 		},
 		clone: function() {return new expr.Partial(this.fn.clone(), this.val.map(mClone))},
+		toCall: function() {
+			var f = this.fn;
+			if(f instanceof expr.Partial)
+				f = new expr.Call(f.fn, f.val);
+			for(var i = 0, a = this.val, r = [], l = a.length; i < l; i++)
+				r.push(a[i] instanceof expr.Partial? a[i].toCall(): a[i]);
+			return new expr.Call(f, r);
+		}
 	});
 
 	extend(expr.Expr, function Fn(args, body) {
@@ -453,6 +476,24 @@ var Miro = (function() {
 			precr: 6,
 			style: 'infix',
 			operator: '*'
+		},
+		'-': {
+			precl: 4,
+			precr: 4,
+			style: 'infix',
+			operator: '-'
+		},
+		'/': {
+			precl: 5,
+			precr: 6,
+			style: 'infix',
+			operator: '/'
+		},
+		'%': {
+			precl: 5,
+			precr: 6,
+			style: 'infix',
+			operator: '%'
 		},
 		'@+': {
 			precl: 11,
