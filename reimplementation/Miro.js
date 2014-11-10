@@ -527,6 +527,25 @@ var Miro = (function() {
 				return new expr.Fn(a, b);
 			}
 		},
+		'=>': {
+			precl: 3,
+			precr: 2,
+			style: 'infix',
+			compile: function(a, b) {
+				return new expr.Call(
+					new expr.Call(
+						new expr.Symbol('.'),
+						[
+							new expr.Fn(a, b),
+							new expr.Name('bind')
+						]
+					),
+					[
+						new expr.Name('this')
+					]
+				);
+			}
+		},
 		';': {
 			precl: 999,
 			precr: 999,

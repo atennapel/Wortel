@@ -24,3 +24,12 @@ function eq(a, b) {
 function smartindex(o, i) {
 	return typeof o.get == 'function'? return o.get(i): typeof o == 'function'? o(i): o[i];
 }
+
+function isType(x, t) {
+	return x instanceof t;
+}
+
+function type(x, t) {
+	if(!isType(x, t)) throw TypeError('Expected ' + t + ' got ' + x);
+	return x;
+}
