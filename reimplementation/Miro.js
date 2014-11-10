@@ -3,7 +3,7 @@ var Miro = (function() {
 	Array.prototype.toString = function() {return '@[' + this.join(' ') + ']'};
 	//
 
-	var version = 0.1;
+	var version = 0.2;
 
 	var nameoperator = '@';
 	var brackets = '()[]{}<>';
