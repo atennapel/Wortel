@@ -507,7 +507,17 @@ var Miro = (function() {
 			precl: 15,
 			precr: 15,
 			style: 'infix',
-			operator: 'instanceof'
+			compile: function(a, b) {
+				return new expr.Call(new expr.Name('type'), [a, b]);
+			}
+		},
+		'::?': {
+			precl: 15,
+			precr: 15,
+			style: 'infix',
+			compile: function(a, b) {
+				return new expr.Call(new expr.Name('isType'), [a, b]);
+			}
 		},
 		'->': {
 			precl: 3,
