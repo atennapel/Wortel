@@ -9,7 +9,7 @@ var Miro = (function() {
 	Array.prototype.toString = function() {return '@[' + this.join(' ') + ']'};
 	//
 
-	var version = 0.3;
+	var version = '0.3.1';
 
 	var nameoperator = '@';
 	var brackets = '()[]{}<>';
@@ -231,7 +231,6 @@ var Miro = (function() {
 		if(o) for(var m in o) f.prototype[m] = o[m];
 		return f;
 	}
-	function mClone(x) {return x.clone()}
 
 	extend(null, function Expr() {}, {
 		toString: function() {return 'Expr'},
@@ -239,17 +238,15 @@ var Miro = (function() {
 		compile: function() {return this.toString()},
 		addMeta: function(v) {this.meta = this.meta || []; this.meta.push(v); return this},
 		countPlaceholders: function() {return 0},
-		clone: function() {return this},
-		search: function(s) {},
 		or: function() {return this},
-		temp: function() {return false}
+		temp: function() {return false},
+		replacePlaceholder: function() {return this}
 	});
 
 	extend(expr.Expr, function Number(v) {
 		this.val = v;
 	}, {
-		toString: function() {return this.val},
-		clone: function() {return new expr.Number(this.val)}
+		toString: function() {return this.val}
 	});
 
 	extend(expr.Expr, function Name(v) {
@@ -257,7 +254,14 @@ var Miro = (function() {
 	}, {
 		toString: function() {return this.val},
 		countPlaceholders: function() {return +(this === placeholder)},
-		clone: function() {return this === placeholder? placeholder: new expr.Name(this.val)}
+		replacePlaceholder: function(state) {
+			if(this === placeholder) {
+				var n = uname();
+				state.push(n);
+				return n;
+			}
+			return this;
+		}
 	});
 	var placeholder = new expr.Name('@_');
 	var tempexpr = new expr.Name('@TEMP');
@@ -270,7 +274,6 @@ var Miro = (function() {
 		this.val = v;
 	}, {
 		toString: function() {return '"' + this.val + '"'},
-		clone: function() {return new expr.String(this.val)}
 	});
 
 	extend(expr.Expr, function RegExp(v, m) {
@@ -278,7 +281,6 @@ var Miro = (function() {
 		this.mod = m;
 	}, {
 		toString: function() {return '/' + this.val + '/' + this.mod},
-		clone: function() {return new expr.RegExp(this.val, this.mod)}
 	});
 
 	extend(expr.Expr, function List(v) {
@@ -289,10 +291,6 @@ var Miro = (function() {
 			for(var i = 0, n = 0, a = this.val, l = a.length; i < l; i++)
 				n += a[i].countPlaceholders();
 			return n;
-		},
-		search: function(s) {
-			var self = this;
-			pushAll(s, this.val.map(function(x, i) {return {parent: self, prop: 'val', val: x, i: i, arr: true}}).reverse());
 		}
 	});
 
@@ -302,7 +300,9 @@ var Miro = (function() {
 		toString: function() {return '[' + this.val.join(' ') + ']'},
 		optimize: function() {return new expr.Array(this.val.map(mOptimize))},
 		compile: function() {return '[' + this.val.map(mCompile).join(', ') + ']'},
-		clone: function() {return new expr.Array(this.val.map(mClone))}
+		replacePlaceholder: function(state) {
+			return new expr.Array(this.val.map(function(x) {return x.replacePlaceholder(state)}));
+		}
 	});
 
 	extend(expr.List, function Object(v) {
@@ -316,7 +316,9 @@ var Miro = (function() {
 				r.push(a[i] + ': ' + a[i+1]);
 			return '{' + r.join(', ') + '}';
 		},
-		clone: function() {return new expr.Object(this.val.map(mClone))}
+		replacePlaceholder: function(state) {
+			return new expr.Object(this.val.map(function(x) {return x.replacePlaceholder(state)}));
+		}
 	});
 
 	extend(expr.List, function Group(v) {
@@ -329,7 +331,9 @@ var Miro = (function() {
 			return new expr.Group(this.val.map(mOptimize));
 		},
 		compile: function() {return '(' + this.val.map(mCompile).join(', ') + ')'},
-		clone: function() {return new expr.Group(this.val.map(mClone))}
+		replacePlaceholder: function(state) {
+			return new expr.Group(this.val.map(function(x) {return x.replacePlaceholder(state)}));
+		}
 	});
 
 	extend(expr.Expr, function Symbol(v) {
@@ -337,8 +341,7 @@ var Miro = (function() {
 		this.op = ops[v];
 		if(!this.op) synerror('Undefined operator: ' + v);
 	}, {
-		toString: function() {return this.val},
-		clone: function() {return new expr.Symbol(this.val)}
+		toString: function() {return this.val}
 	});
 
 	extend(expr.List, function Call(f, v) {
@@ -347,8 +350,7 @@ var Miro = (function() {
 	}, {
 		toString: function() {return '(' + this.fn + ' ' + this.val.join(' ') + ')'},
 		optimize: function() {
-			console.log('optimize call', this+'');
-			if(this.fn === placeholder || containsPartial(this.val) || containsPlaceholder(this.val))
+			if(this.fn === placeholder || this.fn instanceof expr.Partial || containsPartial(this.val) || containsPlaceholder(this.val))
 				return new expr.Partial(this.fn, this.val);
 			if(this.fn instanceof expr.Symbol && this.fn.op.compile)
 				return this.fn.op.compile.apply(this.fn, this.val.map(mOptimize));
@@ -367,17 +369,17 @@ var Miro = (function() {
 			}
 			return this.fn.compile() + '(' + this.val.map(mCompile).join(', ') + ')';
 		},
-		clone: function() {return new expr.Call(this.fn.clone(), this.val.map(mClone))},
-		search: function(s) {
-			var self = this;
-			pushAll(s, this.val.map(function(x, i) {return {parent: self, prop: 'val', val: x, i: i, arr: true}}).reverse());
-			s.push({parent: this, val: this.fn, prop: 'fn'});
-		},
 		countPlaceholders: function() {
 			for(var i = 0, n = 0, a = this.val, l = a.length; i < l; i++)
 				n += a[i].countPlaceholders();
 			n += this.fn.countPlaceholders();
 			return n;
+		},
+		replacePlaceholder: function(state) {
+			return new expr.Call(
+				this.fn.replacePlaceholder(state),
+				this.val.map(function(x) {return x.replacePlaceholder(state)})
+			);
 		}
 	});
 
@@ -399,35 +401,14 @@ var Miro = (function() {
 	}, {
 		toString: function() {return '{' + this.fn + ' ' + this.val.join(' ') + '}'},
 		optimize: function() {
-			console.log('optimize partial', this+'');
-			var args = [], n = this.countPlaceholders();
-			console.log(n, this+'');
-			if(n == 0) return this.toCall();
-			for(var i = 0; i < n; i++) args.push(uname());
-			var c = this.clone(), j = 0, todo = [];
-			c.search(todo);
-			while(todo.length) {
-				var m = todo.pop(), v = m.val;
-				if(v === placeholder) {
-					if(m.arr) m.parent[m.prop][m.i] = args[j++];
-					else m.parent[m.prop] = args[j++];
-				} else v.search(todo);
-			}
-			return new expr.Fn(args, new expr.Call(c.fn, c.val));
+			var args = [], body = this.replacePlaceholder(args);
+			return new expr.Fn(args, body);
 		},
-		search: function(s) {
-			var self = this;
-			pushAll(s, this.val.map(function(x, i) {return {parent: self, prop: 'val', val: x, i: i, arr: true}}).reverse());
-			s.push({parent: this, val: this.fn, prop: 'fn'});
-		},
-		clone: function() {return new expr.Partial(this.fn.clone(), this.val.map(mClone))},
-		toCall: function() {
-			var f = this.fn;
-			if(f instanceof expr.Partial)
-				f = new expr.Call(f.fn, f.val);
-			for(var i = 0, a = this.val, r = [], l = a.length; i < l; i++)
-				r.push(a[i] instanceof expr.Partial? a[i].toCall(): a[i]);
-			return new expr.Call(f, r);
+		replacePlaceholder: function(state) {
+			return new expr.Call(
+				this.fn.replacePlaceholder(state),
+				this.val.map(function(x) {return x.replacePlaceholder(state)})
+			);
 		}
 	});
 
@@ -444,12 +425,6 @@ var Miro = (function() {
 			var head = this.body.slice(0, -1).map(mCompile);
 			return 'function(' + this.args.map(mCompile).join(', ') + ') {' + head.join(';') + '; return (' + last + ')}';
 		},
-		clone: function() {return new expr.Fn(this.args.map(mClone), this.body.map(mClone))},
-		search: function(s) {
-			var self = this;
-			pushAll(s, this.body.map(function(x, i) {return {parent: self, prop: 'body', val: x, i: i, arr: true}}).reverse());
-			pushAll(s, this.args.map(function(x, i) {return {parent: self, prop: 'args', val: x, i: i, arr: true}}).reverse());
-		},
 		countPlaceholders: function() {
 			var n = 0;
 			for(var i = 0, a = this.args, l = a.length; i < l; i++)
@@ -457,7 +432,24 @@ var Miro = (function() {
 			for(var i = 0, a = this.body, l = a.length; i < l; i++)
 				n += a[i].countPlaceholders();
 			return n;
+		},
+		replacePlaceholder: function(state) {
+			return new expr.Fn(
+				this.args.map(function(x) {return x.replacePlaceholder(state)}),
+				this.body.map(function(x) {return x.replacePlaceholder(state)})
+			);
 		}
+	});
+
+	extend(expr.Expr, function Prop(a, b) {
+		this.a = a;
+		this.b = b;
+	}, {
+		toString: function() {return this.a + '.' + this.b},
+		optimize: function() {return new expr.Prop(this.a.optimize(), this.b.optimize())},
+		compile: function() {return '(' + this.a.compile() + ').' + this.b.compile()},
+		countPlaceholders: function() {return this.a.countPlaceholders() + this.b.countPlaceholders()},
+		replacePlaceholder: function(a) {return new expr.Prop(this.a.replacePlaceholder(a), this.b.replacePlaceholder(a))}
 	});
 
 	// operators
@@ -517,13 +509,7 @@ var Miro = (function() {
 			precl: 150,
 			precr: 150,
 			style: 'infix',
-			operator: '.'
-		},
-		'..': {
-			precl: 150,
-			precr: 150,
-			style: 'infix',
-			operator: '..'
+			compile: function(a, b) {return new expr.Prop(a, b)}
 		},
 		'$index': {
 			precl: 150,
@@ -581,12 +567,9 @@ var Miro = (function() {
 			style: 'infix',
 			compile: function(a, b) {
 				return new expr.Call(
-					new expr.Call(
-						new expr.Symbol('.'),
-						[
-							new expr.Fn(a.or([]), b),
-							new expr.Name('bind')
-						]
+					new expr.Prop(
+						new expr.Fn(a.or([]), b),
+						new expr.Name('bind')
 					),
 					[
 						new expr.Name('this')
@@ -619,10 +602,39 @@ var Miro = (function() {
 			operator: '||'
 		}
 	};
+
+	function formatValue(x) {
+		var t = typeof x;
+		if((x instanceof Number || t == 'number') ||
+			 (x instanceof Date) || (x === undefined) || (x === null) || (t == 'boolean') || (t == 'function'))
+			return ''+x;
+		if(x instanceof String || t == 'string')
+			return JSON.stringify(x);
+		if(Array.isArray(x)) {
+			for(var i = 0, l = x.length, r = []; i < l; i++)
+				r.push(_str(x[i]));
+			if(r[0][0] == '[')
+				return '[\n' + r.join('\n') + '\n]';
+			else
+				return '[' + r.join(' ') + ']';
+		}
+		var r = [];
+		for(var k in x)
+			r.push(_str(k), _str(x[k]));
+		return '{' + r.join(' ') + '}';
+	};
+
+	function runTags() {
+		for(var i = 0, a = document.getElementsByTagName('script'), l = a.length; i < l; i++)
+			if(a[i].type.toLowerCase() == 'text/wortel')
+				eval(compile(a[i].innerHTML))
+	};
 	
 	return {
 		compile: compile,
-		version: version
+		version: version,
+		formatValue: formatValue,
+		runTags: runTags
 	};
 })();
 
@@ -637,7 +649,7 @@ if(typeof global != 'undefined' && global) {
 			// REPL
 			var PARSEMODE = 0, EVALMODE = 1;
 			var INITIALMODE = PARSEMODE;
-			var INITIALFORMAT = false;
+			var INITIALFORMAT = true;
 			var INITIALSTR = true;
 			
 			var mode = INITIALMODE, format = INITIALFORMAT, str = INITIALSTR;
@@ -658,7 +670,7 @@ if(typeof global != 'undefined' && global) {
 								if(Array.isArray(t)) t = t.join(' ');
 								t += '';
 							}
-							//if(format) t = Miro.formatValue(t);
+							if(format) t = Miro.formatValue(t);
 							console.log(t);
 						} else if(mode == EVALMODE) {
 							var t = eval(Miro.compile(s));
