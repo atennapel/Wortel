@@ -8,7 +8,7 @@ var Miro = (function() {
 	Array.prototype.toString = function() {return '@[' + this.join(' ') + ']'};
 	//
 
-	var version = '0.3.2';
+	var version = '0.3.3';
 
 	var nameoperator = '@';
 	var brackets = '()[]{}<>';
@@ -183,13 +183,13 @@ var Miro = (function() {
 				else args.push(r[j - 1]), p++;
 				if(!r[j + 1] || r[j + 1] instanceof expr.Symbol) args.push(op.op.nopapsecond? tempexpr: placeholder);
 				else args.push(r[j + 1]), p++;
-				r.splice(sp, p, new expr.Call(op, args));
+				r.splice(sp, p, call(op, args));
 			} else if(s == 'prefix') {
 				if(!r[j + 1] || r[j + 1] instanceof expr.Symbol) args.push(op.op.nopapfirst? tempexpr: placeholder), sp++;
 				else args.push(r[j + 1]);
-				r.splice(j, 2 - sp, new expr.Call(op, args));
+				r.splice(j, 2 - sp, call(op, args));
 			} else if(s == 'nofix') {
-				r.splice(j, 1, new expr.Call(op, []));
+				r.splice(j, 1, call(op, []));
 			} else error('Invalid operator style: ' + s);
 		}
 		return r;
@@ -325,8 +325,6 @@ var Miro = (function() {
 	}, {
 		toString: function() {return '(' + this.val.join(' ') + ')'},
 		optimize: function() {
-			var l = this.val.length;
-			//if(l == 1) return this.val[0];
 			return new expr.Group(this.val.map(mOptimize));
 		},
 		compile: function() {return '(' + this.val.map(mCompile).join(', ') + ')'},
@@ -355,7 +353,7 @@ var Miro = (function() {
 				if(!this.fn.op.compile) error('No compile function defined for ' + this.fn);
 				return this.fn.op.compile.apply(this.fn, this.val.map(mOptimize));
 			}
-			return new expr.Call(this.fn, this.val.map(mOptimize));
+			return call(this.fn, this.val.map(mOptimize));
 		},
 		compile: function() {
 			return this.fn.compile() + '(' + this.val.map(mCompile).join(', ') + ')';
@@ -367,12 +365,18 @@ var Miro = (function() {
 			return n;
 		},
 		replacePlaceholder: function(state) {
-			return new expr.Call(
+			return call(
 				this.fn.replacePlaceholder(state),
 				this.val.map(function(x) {return x.replacePlaceholder(state)})
 			);
 		}
 	});
+	function call(f, v) {
+		v = unpack(v);
+		if(f === placeholder || f instanceof expr.Partial || containsPartial(v) || containsPlaceholder(v))
+			return new expr.Partial(f, v);
+		return new expr.Call(f, v);
+	}
 
 	function containsPlaceholder(a) {
 		for(var i = 0, l = a.length; i < l; i++)
@@ -393,10 +397,10 @@ var Miro = (function() {
 		toString: function() {return '{' + this.fn + ' ' + this.val.join(' ') + '}'},
 		optimize: function() {
 			var args = [], body = this.replacePlaceholder(args);
-			return new expr.Fn(args, body);
+			return new expr.Fn(args, body.optimize());
 		},
 		replacePlaceholder: function(state) {
-			return new expr.Call(
+			return call(
 				this.fn.replacePlaceholder(state),
 				this.val.map(function(x) {return x.replacePlaceholder(state)})
 			);
@@ -496,7 +500,7 @@ var Miro = (function() {
 		error('Cannot convert ' + x + ' to expr');
 	} 
 	function methodCall(a, b, c) {
-		return new expr.Call(new expr.Prop(a, toExpr(b)), c);
+		return call(new expr.Prop(a, toExpr(b)), c);
 	}
 	// operators
 	var namelike = {
@@ -533,6 +537,14 @@ var Miro = (function() {
 			style: 'infix',
 			compile: binOp('%')
 		},
+		'%%': {
+			precl: 5,
+			precr: 6,
+			style: 'infix',
+			compile: function(a, b) {
+				return new expr.BinOp('===', new expr.BinOp('%', a, b), new expr.Number('0'));
+			}
+		},
 		'@+': {
 			precl: 11,
 			precr: 10,
@@ -557,6 +569,20 @@ var Miro = (function() {
 			style: 'infix',
 			compile: function(a, b) {return new expr.Prop(a, b)}
 		},
+		'..': {
+			precl: 150,
+			precr: 150,
+			style: 'infix',
+			compile: function(a, b) {
+				var n = uname(), i = uname();
+				return methodCall(call(new expr.Name('Array.apply'), [
+					new expr.Name('null'),
+					new expr.Object([
+						new expr.Name('length'), new expr.BinOp('+', new expr.Number('1'), new expr.BinOp('-', b, a))
+					])
+				]), 'map', new expr.Fn([n, i], [new expr.BinOp('+', a, i)]));
+			}
+		},
 		'$index': {
 			precl: 150,
 			precr: 150,
@@ -567,14 +593,14 @@ var Miro = (function() {
 			precl: 150,
 			precr: 150,
 			style: 'infix',
-			compile: function(a, b) {return new expr.Index(a, b)}
+			compile: function(a, b) {return call(new expr.Name('smartindex'), [a, unpack(b)[0]])}
 		},
 		'$apply': {
 			precl: 150,
 			precr: 150,
 			style: 'infix',
 			compile: function(f, a) {
-				return new expr.Call(f, a);
+				return call(f, a);
 			}
 		},
 		':': {
@@ -588,7 +614,7 @@ var Miro = (function() {
 			precr: 15,
 			style: 'infix',
 			compile: function(a, b) {
-				return new expr.Call(new expr.Name('type'), [a, b]);
+				return call(new expr.Name('type'), [a, b]);
 			}
 		},
 		'::?': {
@@ -596,7 +622,7 @@ var Miro = (function() {
 			precr: 15,
 			style: 'infix',
 			compile: function(a, b) {
-				return new expr.Call(new expr.Name('isType'), [a, b]);
+				return call(new expr.Name('isType'), [a, b]);
 			}
 		},
 		'->': {
@@ -614,7 +640,7 @@ var Miro = (function() {
 			nopapfirst: true,
 			style: 'infix',
 			compile: function(a, b) {
-				return new expr.Call(
+				return call(
 					new expr.Prop(
 						new expr.Fn(a.or([]), b),
 						new expr.Name('bind')
@@ -636,6 +662,12 @@ var Miro = (function() {
 			precr: 3,
 			style: 'infix',
 			compile: binOp('===')
+		},
+		'==': {
+			precl: 3,
+			precr: 3,
+			style: 'infix',
+			compile: function(a, b) {return call(new expr.Name('eq'), [a, b])}
 		},
 		'>': {
 			precl: 3,

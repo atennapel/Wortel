@@ -26,7 +26,7 @@ function smartindex(o, i) {
 }
 
 function isType(x, t) {
-	return x instanceof t;
+	return Object(x) instanceof t;
 }
 
 function type(x, t) {
