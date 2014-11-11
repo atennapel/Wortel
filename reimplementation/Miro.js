@@ -2,7 +2,6 @@
  * @author: Albert ten Napel
  *
  * TODO:
- * 	-> @_
  */
 var Miro = (function() {
 	// TEMP
@@ -612,7 +611,7 @@ var Miro = (function() {
 			return JSON.stringify(x);
 		if(Array.isArray(x)) {
 			for(var i = 0, l = x.length, r = []; i < l; i++)
-				r.push(_str(x[i]));
+				r.push(formatValue(x[i]));
 			if(r[0][0] == '[')
 				return '[\n' + r.join('\n') + '\n]';
 			else
@@ -620,7 +619,7 @@ var Miro = (function() {
 		}
 		var r = [];
 		for(var k in x)
-			r.push(_str(k), _str(x[k]));
+			r.push(formatValue(k), formatValue(x[k]));
 		return '{' + r.join(' ') + '}';
 	};
 
