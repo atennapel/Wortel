@@ -177,20 +177,22 @@ var Miro = (function() {
 		var o = r.filter(function(x) {return x instanceof expr.Symbol}).sort(function(a, b) {return a.op.precr < b.op.precl});
 		for(var i = 0, l = o.length; i < l; i++) {
 			var op = o[i], j = r.indexOf(op), s = op.op.style, args = [], sp = 0;
-			if(s == 'infix') {
-				var sp = j - 1, p = 1;
-				if(!r[j - 1] || r[j - 1] instanceof expr.Symbol) args.push(op.op.nopapfirst? tempexpr: placeholder), sp = j;
-				else args.push(r[j - 1]), p++;
-				if(!r[j + 1] || r[j + 1] instanceof expr.Symbol) args.push(op.op.nopapsecond? tempexpr: placeholder);
-				else args.push(r[j + 1]), p++;
-				r.splice(sp, p, call(op, args));
-			} else if(s == 'prefix') {
-				if(!r[j + 1] || r[j + 1] instanceof expr.Symbol) args.push(op.op.nopapfirst? tempexpr: placeholder), sp++;
-				else args.push(r[j + 1]);
-				r.splice(j, 2 - sp, call(op, args));
-			} else if(s == 'nofix') {
-				r.splice(j, 1, call(op, []));
-			} else error('Invalid operator style: ' + s);
+			if(j > -1) {
+				if(s == 'infix') {
+					var sp = j - 1, p = 1;
+					if(!r[j - 1] || r[j - 1] instanceof expr.Symbol) args.push(op.op.nopapfirst? tempexpr: placeholder), sp = j;
+					else args.push(r[j - 1]), p++;
+					if(!r[j + 1] || r[j + 1] instanceof expr.Symbol) args.push(op.op.nopapsecond? tempexpr: placeholder);
+					else args.push(r[j + 1]), p++;
+					r.splice(sp, p, call(op, args));
+				} else if(s == 'prefix') {
+					if(!op.op.quote && (!r[j + 1] || r[j + 1] instanceof expr.Symbol)) args.push(op.op.nopapfirst? tempexpr: placeholder), sp++;
+					else args.push(r[j + 1]);
+					r.splice(j, 2 - sp, call(op, args));
+				} else if(s == 'nofix') {
+					r.splice(j, 1, call(op, []));
+				} else error('Invalid operator style: ' + s);
+			}
 		}
 		return r;
 	}
@@ -557,6 +559,14 @@ var Miro = (function() {
 			style: 'prefix',
 			compile: unOp('-')
 		},
+		'#': {
+			precl: 11,
+			precr: 10,
+			style: 'prefix',
+			compile: function(x) {
+				return new expr.Prop(x, new expr.Name('length'))
+			}
+		},
 		"'": {
 			precl: 200,
 			precr: 200,
@@ -733,6 +743,20 @@ var Miro = (function() {
 			style: 'infix',
 			compile: function(a, b) {
 				return methodCall(a, 'reduce', [b]);
+			}
+		},
+		'^': {
+			precl: 99999,
+			precr: 99999,
+			quote: true,
+			style: 'prefix',
+			compile: function(o) {
+				var l = o.op.style == 'infix'?  2:
+								o.op.style == 'prefix'? 1:
+								o.op.style == 'nofix'?  0:
+								error('Undefined operator style: ' + o.op.style);
+				for(var i = 0, a = []; i < l; i++) a.push(placeholder);
+				return new expr.Partial(o, a);
 			}
 		}
 	};
