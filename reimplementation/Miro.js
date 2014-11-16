@@ -173,12 +173,20 @@ var Miro = (function() {
 	}
 
 	function parseOp(a) {
-		var r = a.slice();
+		var a = a.slice();
+		for(var i = 0, l = a.length, r = []; i < l; i++) {
+			var c = a[i];
+			if(c instanceof expr.Symbol && c.val == '~' && a[i+1] && a[i+1] instanceof expr.Symbol)
+				a[i+1].rev = true;
+			else r.push(c);
+		}
 		var o = r.filter(function(x) {return x instanceof expr.Symbol}).sort(function(a, b) {return a.op.precr < b.op.precl});
 		for(var i = 0, l = o.length; i < l; i++) {
 			var op = o[i], j = r.indexOf(op), s = op.op.style, args = [], sp = 0;
 			if(j > -1) {
-				if(s == 'infix') {
+				if(op.val == '~' && r[j + 1] instanceof expr.Symbol) {
+
+				} else if(s == 'infix') {
 					var sp = j - 1, p = 1;
 					if(!r[j - 1] || r[j - 1] instanceof expr.Symbol) args.push(op.op.nopapfirst? tempexpr: placeholder), sp = j;
 					else args.push(r[j - 1]), p++;
@@ -353,9 +361,14 @@ var Miro = (function() {
 				return new expr.Partial(this.fn, this.val);
 			if(this.fn instanceof expr.Symbol) {
 				if(!this.fn.op.compile) error('No compile function defined for ' + this.fn);
-				return this.fn.op.compile.apply(this.fn, this.val.map(mOptimize));
+				var args = this.val.map(mOptimize);
+				if(this.fn.rev) args.reverse(), this.fn.rev = false;
+				return this.fn.op.compile.apply(this.fn, args);
+			} else {
+				var args = this.val.map(mOptimize);
+				if(this.fn.rev) args.reverse(), this.fn.rev = false;
+				return call(this.fn, args);
 			}
-			return call(this.fn, this.val.map(mOptimize));
 		},
 		compile: function() {
 			return this.fn.compile() + '(' + this.val.map(mCompile).join(', ') + ')';
@@ -757,6 +770,15 @@ var Miro = (function() {
 								error('Undefined operator style: ' + o.op.style);
 				for(var i = 0, a = []; i < l; i++) a.push(placeholder);
 				return new expr.Partial(o, a);
+			}
+		},
+		'~': {
+			precl: 999999,
+			precr: 999999,
+			style: 'prefix',
+			compile: function(o) {
+				o.rev = true;
+				return o;
 			}
 		}
 	};
